@@ -1,5 +1,6 @@
 port module Main exposing (main)
 
+import Array exposing (Array)
 import Browser
 import Html exposing (..)
 
@@ -13,7 +14,7 @@ main =
         , update = update
         , view =
             \m ->
-                { title = "My Elm App"
+                { title = "tno43 DP visualize"
                 , body = [ view m ]
                 }
         , subscriptions = \_ -> Sub.none
@@ -23,12 +24,19 @@ main =
 
 -- MODEL
 
-type alias Model = String
+type alias Model =
+    { size : (Int, Int)
+    , table : Array (Array Int)
+    }
 
+initTable : (Int, Int) -> Array (Array Int)
+initTable size =
+    Array.initialize (Tuple.first size) (\_ -> Array.initialize (Tuple.second size) (\_ -> 0))
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( "Hello Elm!"
+    ( Model
+        (5, 5) <| initTable (5, 5)
     , Cmd.none)
 
 
@@ -49,6 +57,17 @@ update msg model =
 
 -- VIEW
 
+showRow : Array Int -> Html Msg
+showRow row =
+    Array.toList row
+    |> List.map (\n -> td [] [ String.fromInt n |> text ])
+    |> tr []
+
+showTable : Array (Array Int) -> Html Msg
+showTable tbl =
+    Array.toList tbl
+    |> List.map showRow
+    |> table []
+
 view : Model -> Html Msg
-view model =
-    text model
+view model = showTable model.table
