@@ -3,6 +3,8 @@ port module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 
 
 -- MAIN
@@ -24,19 +26,34 @@ main =
 
 -- MODEL
 
-type alias Model =
-    { size : (Int, Int)
+type alias Table =
+    { h : Int
+    , w : Int
     , table : Array (Array Int)
     }
 
-initTable : (Int, Int) -> Array (Array Int)
-initTable size =
-    Array.initialize (Tuple.first size) (\_ -> Array.initialize (Tuple.second size) (\_ -> 0))
+type alias Model = Table
+
+
+initTable : Int -> Int -> Array (Array Int)
+initTable h w =
+    Array.initialize h (\_ -> Array.initialize w (\_ -> 0))
+
+
+updateTable : Int -> Int -> Array (Array Int) -> Array (Array Int)
+updateTable h w table =
+    Array.initialize h (\i ->
+        Array.initialize w (\j ->
+            case Array.get i table |> Maybe.andThen (Array.get j) of
+                Nothing -> 0
+                Just x -> x
+        )
+    )
+
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( Model
-        (5, 5) <| initTable (5, 5)
+    ( Table 5 5 (initTable 5 5)
     , Cmd.none)
 
 
@@ -44,15 +61,33 @@ init _ =
 -- UPDATE
 
 type Msg
-    = Hoge
+    = UpdateH String
+    | UpdateW String
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        Hoge ->
-            (model, Cmd.none)
-
+        UpdateH h_str ->
+            case String.toInt h_str of
+                Just h_ ->
+                    let
+                        h = Basics.max 1 h_
+                        table = updateTable h ( model.w ) model.table
+                    in
+                    ( { model | table = table, h = h }, Cmd.none )
+                Nothing ->
+                    ( model, Cmd.none )
+        UpdateW w_str ->
+            case String.toInt w_str of
+                Just w_ ->
+                    let
+                        w = Basics.max 1 w_
+                        table = updateTable ( model.h ) w model.table
+                    in
+                    ( { model | table = table, w = w }, Cmd.none )
+                Nothing ->
+                    ( model, Cmd.none )
 
 
 -- VIEW
@@ -70,4 +105,29 @@ showTable tbl =
     |> table []
 
 view : Model -> Html Msg
-view model = showTable model.table
+view model =
+    div
+        []
+        [ h1 [] [text "DP visualizer"]
+        , div
+            []
+            [ text "H :"
+            , input
+                [ onInput UpdateH
+                , type_ "number"
+                , model.h |> String.fromInt |> value
+                ]
+                []
+            ]
+        , div
+            []
+            [ text "W :"
+            , input
+                [ onInput UpdateW
+                , type_ "number"
+                , model.w |> String.fromInt |> value
+                ]
+                []
+            ]
+        , showTable model.table
+        ]
