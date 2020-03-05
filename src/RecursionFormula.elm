@@ -1,6 +1,7 @@
 module RecursionFormula exposing (..)
 
 import Parser exposing (..)
+import Set exposing (empty)
 
 type State = Applied | Editting
 
@@ -8,6 +9,7 @@ type State = Applied | Editting
 type Expr
     = Con Int
     | Var String
+    | AddExpr Int Expr
 
 type alias RecursionFormula =
     { arg1 : String
@@ -37,8 +39,21 @@ updateTerm term f =
 exprParser : Parser Expr
 exprParser =
     oneOf
-        [ map Con int
-        , map Var getSource
+        [ succeed (\e1 e2 -> AddExpr e1 e2)
+            |. backtrackable spaces
+            |= backtrackable int
+            |. backtrackable spaces
+            |. symbol "+"
+            |. backtrackable spaces
+            |= lazy (\_ -> exprParser)
+            |. spaces
+        , map Con int
+        , map Var
+            (variable
+                { start = Char.isAlpha
+                , inner = Char.isAlpha
+                , reserved = Set.empty
+                })
         ]
 
 
