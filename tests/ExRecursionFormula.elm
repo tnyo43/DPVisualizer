@@ -1,6 +1,7 @@
 module ExRecursionFormula exposing (..)
 
 import Expect exposing (Expectation)
+import Expr exposing (..)
 import Fuzz exposing (Fuzzer, int, list, string)
 import RecursionFormula exposing (..)
 import Test exposing (..)
