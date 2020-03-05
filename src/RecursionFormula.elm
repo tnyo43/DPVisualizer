@@ -5,11 +5,23 @@ import Set exposing (empty)
 
 type State = Applied | Editting
 
+type ExprOp = Add | Sub
+
+type TermOp = Mul | Div | Mod
 
 type Expr
-    = Con Int
+    = AppExpr ExprOp Term Expr
+    | ETerm Term
+
+type Term
+    = AppTerm TermOp Factor Term
+    | TFactor Factor
+
+type Factor
+    = FExpr Expr
+    | Con Int
     | Var String
-    | AddExpr Int Expr
+
 
 type alias RecursionFormula =
     { arg1 : String
@@ -36,24 +48,65 @@ updateTerm : String -> RecursionFormula -> RecursionFormula
 updateTerm term f =
     { f | term = term }
 
+
 exprParser : Parser Expr
 exprParser =
     oneOf
-        [ succeed (\e1 e2 -> AddExpr e1 e2)
+        [ succeed (\term op expr -> AppExpr op term expr)
             |. backtrackable spaces
-            |= backtrackable int
-            |. backtrackable spaces
-            |. symbol "+"
-            |. backtrackable spaces
+            |= backtrackable termParser
+            |. spaces
+            |= backtrackable 
+                ( oneOf
+                    [ map (\_ -> Add) (symbol "+")
+                    , map (\_ -> Sub) (symbol "-")
+                    ]
+                )
+            |. spaces
             |= lazy (\_ -> exprParser)
+            |. spaces
+        , map ETerm termParser
+        ]
+
+termParser : Parser Term
+termParser =
+    oneOf
+        [ succeed (\factor op term -> AppTerm op factor term)
+            |. backtrackable spaces
+            |= backtrackable factorParser
+            |. backtrackable spaces
+            |= backtrackable 
+                ( oneOf
+                    [ map (\_ -> Mul) (symbol "*")
+                    , map (\_ -> Div) (symbol "/")
+                    , map (\_ -> Mod) (symbol "%")
+                    ]
+                )
+            |. backtrackable spaces
+            |= (lazy (\_ -> termParser))
+            |. spaces
+        , map TFactor factorParser
+        ]
+
+factorParser : Parser Factor
+factorParser =
+    oneOf
+        [ succeed FExpr
+            |. backtrackable spaces
+            |. (symbol "(")
+            |. spaces
+            |= (lazy (\_ -> exprParser))
+            |. spaces
+            |. (symbol ")")
             |. spaces
         , map Con int
         , map Var
-            (variable
+            ( variable
                 { start = Char.isAlpha
                 , inner = Char.isAlpha
                 , reserved = Set.empty
-                })
+                }
+            )
         ]
 
 
