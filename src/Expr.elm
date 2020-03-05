@@ -20,6 +20,7 @@ type Factor
     = FExpr Expr
     | Con Int
     | Var String
+    | Dp Expr Expr
 
 
 exprParser : Parser Expr
@@ -68,6 +69,17 @@ factorParser =
             |. spaces
             |. symbol ")"
             |. spaces
+        , succeed (\e1 e2 -> Dp e1 e2)
+            |. backtrackable spaces
+            |. symbol "dp["
+            |. spaces
+            |= (lazy (\_ -> exprParser))
+            |. spaces
+            |. symbol "]["
+            |. spaces
+            |= (lazy (\_ -> exprParser))
+            |. spaces
+            |. symbol "]"
         , map Con int
         , map Var
             ( variable
@@ -125,3 +137,5 @@ stringOfFactor factor =
             String.fromInt n
         Var v ->
             v
+        Dp e1 e2 ->
+            "dp[" ++ (stringOf e1) ++ "][" ++ (stringOf e2) ++ "]"

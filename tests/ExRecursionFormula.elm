@@ -47,6 +47,24 @@ suite =
                 , testParseTerm
                     "y % (4 + 2) / x"
                     ( ETerm (AppTerm Mod (Var "y") (AppTerm Div (FExpr (AppExpr Add (TFactor (Con 4)) (ETerm (TFactor (Con 2))))) (TFactor (Var "x")))) )
+                , testParseTerm
+                    "dp[i][j]"
+                    ( Dp (exprOfVar "i") (exprOfVar "j") |> TFactor |> ETerm )
+                , testParseTerm
+                    "dp[i*2][j+1] % i + 2 * dp[i][j-1]"
+                    ( AppExpr
+                        Add
+                        (AppTerm
+                            Mod
+                            (Dp (ETerm (AppTerm Mul (Var "i") (TFactor (Con 2)))) (AppExpr Add (TFactor (Var "j")) (ETerm (TFactor (Con 1)))))
+                            (TFactor (Var "i"))
+                        )
+                        (ETerm (AppTerm
+                                    Mul
+                                    (Con 2)
+                                    (TFactor (Dp (ETerm (TFactor (Var "i"))) (AppExpr Sub (TFactor (Var "j")) (ETerm (TFactor (Con 1))))))
+                        ))
+                    )
                 ]
             , describe "parseが失敗"
                 [ testParseFail "+1"
