@@ -3,7 +3,6 @@ module RecursionFormula exposing (..)
 import Parser exposing (..)
 import Set exposing (empty)
 
-type State = Applied | Editting
 
 type ExprOp = Add | Sub
 
@@ -23,30 +22,43 @@ type Factor
     | Var String
 
 
-type alias RecursionFormula =
+type alias RFEditting =
     { arg1 : String
     , arg2 : String
     , term : String
-    , state : State
     }
 
+type alias RFApplied =
+    { arg1 : Expr
+    , arg2 : Expr
+    , term : Expr
+    }
+
+type RecursionFormula
+    = Editting RFEditting
+    | Applied RFApplied
 
 init : () -> RecursionFormula
 init _ =
-    RecursionFormula "0" "0" "1" Editting
+    RFEditting "0" "0" "1" |> Editting
 
 
 updateArg : Int -> String -> RecursionFormula -> RecursionFormula
-updateArg n arg f =
-    let
-        ( arg1, arg2 ) = if n == 1 then ( arg, f.arg2 ) else ( f.arg1, arg )
-    in
-    { f | arg1 = arg1, arg2 = arg2 }
+updateArg n arg rf =
+    case rf of
+        Editting f ->
+            let
+                ( arg1, arg2 ) = if n == 1 then ( arg, f.arg2 ) else ( f.arg1, arg )
+            in
+            Editting { f | arg1 = arg1, arg2 = arg2 }
+        _ -> rf
 
 
 updateTerm : String -> RecursionFormula -> RecursionFormula
-updateTerm term f =
-    { f | term = term }
+updateTerm term rf =
+    case rf of
+        Editting f -> Editting { f | term = term }
+        _ -> rf
 
 
 exprParser : Parser Expr
@@ -56,12 +68,10 @@ exprParser =
             |. backtrackable spaces
             |= backtrackable termParser
             |. spaces
-            |= backtrackable 
-                ( oneOf
-                    [ map (\_ -> Add) (symbol "+")
-                    , map (\_ -> Sub) (symbol "-")
-                    ]
-                )
+            |= oneOf
+                [ map (\_ -> Add) (symbol "+")
+                , map (\_ -> Sub) (symbol "-")
+                ]
             |. spaces
             |= lazy (\_ -> exprParser)
             |. spaces
@@ -75,13 +85,11 @@ termParser =
             |. backtrackable spaces
             |= backtrackable factorParser
             |. backtrackable spaces
-            |= backtrackable 
-                ( oneOf
-                    [ map (\_ -> Mul) (symbol "*")
-                    , map (\_ -> Div) (symbol "/")
-                    , map (\_ -> Mod) (symbol "%")
-                    ]
-                )
+            |= oneOf
+                [ map (\_ -> Mul) (symbol "*")
+                , map (\_ -> Div) (symbol "/")
+                , map (\_ -> Mod) (symbol "%")
+                ]
             |. backtrackable spaces
             |= (lazy (\_ -> termParser))
             |. spaces
@@ -93,11 +101,11 @@ factorParser =
     oneOf
         [ succeed FExpr
             |. backtrackable spaces
-            |. (symbol "(")
+            |. symbol "("
             |. spaces
             |= (lazy (\_ -> exprParser))
             |. spaces
-            |. (symbol ")")
+            |. symbol ")"
             |. spaces
         , map Con int
         , map Var
@@ -114,13 +122,29 @@ parseExpr : String ->  Result (List DeadEnd) Expr
 parseExpr str =
     run exprParser str
 
+
 apply : RecursionFormula -> RecursionFormula
 apply f =
-    case f.state of
-        Applied -> f
-        Editting -> { f | state = Applied }
+    case f of
+        Applied _ -> f
+        Editting rf ->
+            let
+                rf_ = parseExpr rf.arg1
+                        |> Result.andThen (\arg1 -> parseExpr rf.arg2
+                        |> Result.andThen (\arg2 -> parseExpr rf.term
+                        |> Result.andThen (\term -> RFApplied arg1 arg2 term |> Ok)))
+            in
+            case rf_ of
+                Ok rrf -> Applied rrf
+                _ -> f
+
+
+isEditting : RecursionFormula -> Bool
+isEditting rf =
+    case rf of
+        Editting _ -> True
+        _ -> False
 
 
 stringOf : RecursionFormula -> String
-stringOf rf =
-    "dp[" ++ rf.arg1 ++ "][" ++ rf.arg2 ++ "] = " ++ rf.term
+stringOf _ = "dp[0][0] = 1"

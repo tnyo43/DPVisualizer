@@ -106,7 +106,7 @@ update msg model =
         AddRecursionFormula ->
             let
                 fs =
-                    if Array.length ( Array.filter (\f -> f.state == RF.Editting) model.formulas ) == 0
+                    if Array.length ( Array.filter RF.isEditting model.formulas ) == 0
                     then Array.push (RF.init ()) model.formulas
                     else model.formulas
             in
@@ -168,19 +168,18 @@ showRecursionFormula fs =
                 (\i -> \rf ->
                     let
                         divRf =
-                            case rf.state of
-                                RF.Editting ->
+                            case rf of
+                                RF.Editting f ->
                                     div []
                                         [ text "dp["
-                                        , input [ onInput (UpdateRFArg 1 i) ] [ text rf.arg1 ]
+                                        , input [ onInput (UpdateRFArg 1 i) ] [ text f.arg1 ]
                                         , text "]["
-                                        , input [ onInput (UpdateRFArg 2 i) ] [ text rf.arg2 ]
+                                        , input [ onInput (UpdateRFArg 2 i) ] [ text f.arg2 ]
                                         , text "] = "
-                                        , input [ onInput (UpdateRFTerm i) ] [ text rf.term ]
+                                        , input [ onInput (UpdateRFTerm i) ] [ text f.term ]
                                         ]
-                                RF.Applied ->
-                                    div []
-                                        [ "dp[" ++ rf.arg1 ++ "][" ++ rf.arg2 ++ "] = " ++ rf.term |> text ]
+                                _ ->
+                                    div [] [ RF.stringOf rf |> text ]
                     in
                     li []
                         [ divRf
