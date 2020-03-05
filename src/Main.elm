@@ -105,7 +105,10 @@ update msg model =
 
         AddRecursionFormula ->
             let
-                fs = Array.push (RF.initRecursionFormula ()) model.formulas
+                fs =
+                    if Array.length ( Array.filter (\f -> f.state == RF.Editting) model.formulas ) == 0
+                    then Array.push (RF.init ()) model.formulas
+                    else model.formulas
             in
             ( { model | formulas = fs }, Cmd.none )
 
@@ -128,8 +131,11 @@ update msg model =
             in
             ( { model | formulas = fs }, Cmd.none )
 
-        ApplyRecursionFormula _ ->
-            ( model, Cmd.none )
+        ApplyRecursionFormula i ->
+            case Array.get i model.formulas of
+                Just f ->
+                    ( {model | formulas = Array.set i (RF.apply f) model.formulas }, Cmd.none )
+                Nothing -> ( model, Cmd.none )
 
         RemoveRecursionFormula i ->
             let
@@ -162,14 +168,19 @@ showRecursionFormula fs =
                 (\i -> \rf ->
                     let
                         divRf =
-                            div []
-                                [ text "dp["
-                                , input [ onInput (UpdateRFArg 1 i) ] [ text rf.arg1 ]
-                                , text "]["
-                                , input [ onInput (UpdateRFArg 2 i) ] [ text rf.arg2 ]
-                                , text "] = "
-                                , input [ onInput (UpdateRFTerm i) ] [ text rf.term ]
-                                ]
+                            case rf.state of
+                                RF.Editting ->
+                                    div []
+                                        [ text "dp["
+                                        , input [ onInput (UpdateRFArg 1 i) ] [ text rf.arg1 ]
+                                        , text "]["
+                                        , input [ onInput (UpdateRFArg 2 i) ] [ text rf.arg2 ]
+                                        , text "] = "
+                                        , input [ onInput (UpdateRFTerm i) ] [ text rf.term ]
+                                        ]
+                                RF.Applied ->
+                                    div []
+                                        [ "dp[" ++ rf.arg1 ++ "][" ++ rf.arg2 ++ "] = " ++ rf.term |> text ]
                     in
                     li []
                         [ divRf

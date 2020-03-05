@@ -1,16 +1,18 @@
 module RecursionFormula exposing (..)
 
+type State = Applied | Editting
 
 type alias RecursionFormula =
     { arg1 : String
     , arg2 : String
     , term : String
+    , state : State
     }
 
 
-initRecursionFormula : () -> RecursionFormula
-initRecursionFormula _ =
-    RecursionFormula "0" "0" "1"
+init : () -> RecursionFormula
+init _ =
+    RecursionFormula "0" "0" "1" Editting
 
 
 updateArg : Int -> String -> RecursionFormula -> RecursionFormula
@@ -25,6 +27,12 @@ updateTerm : String -> RecursionFormula -> RecursionFormula
 updateTerm term f =
     { f | term = term }
 
+
+apply : RecursionFormula -> RecursionFormula
+apply f =
+    case f.state of
+        Applied -> f
+        Editting -> { f | state = Applied }
 
 
 stringOf : RecursionFormula -> String
