@@ -1,6 +1,13 @@
 module RecursionFormula exposing (..)
 
+import Parser exposing (..)
+
 type State = Applied | Editting
+
+
+type Expr
+    = Con Int
+    | Var String
 
 type alias RecursionFormula =
     { arg1 : String
@@ -27,6 +34,17 @@ updateTerm : String -> RecursionFormula -> RecursionFormula
 updateTerm term f =
     { f | term = term }
 
+exprParser : Parser Expr
+exprParser =
+    oneOf
+        [ map Con int
+        , map Var getSource
+        ]
+
+
+parseExpr : String ->  Result (List DeadEnd) Expr
+parseExpr str =
+    run exprParser str
 
 apply : RecursionFormula -> RecursionFormula
 apply f =
