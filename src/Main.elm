@@ -5,6 +5,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import RecursionFormula as RF
 
 
 -- MAIN
@@ -32,11 +33,9 @@ type alias Table =
     , t : Array (Array Int)
     }
 
-type alias RecursionFormula = String
-
 type alias Model =
     { table : Table
-    , formulas : Array RecursionFormula
+    , formulas : Array RF.RecursionFormula
     }
 
 
@@ -71,6 +70,10 @@ type Msg
     = UpdateH String
     | UpdateW String
     | AddRecursionFormula
+    | UpdateRFArg Int Int String
+    | UpdateRFTerm Int String
+    | ApplyRecursionFormula Int
+    | RemoveRecursionFormula Int
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -102,10 +105,37 @@ update msg model =
 
         AddRecursionFormula ->
             let
-                fs = Array.push "dp[i][j] = dp[i][j-1] + dp[i-1][j]" model.formulas
+                fs = Array.push (RF.initRecursionFormula ()) model.formulas
             in
             ( { model | formulas = fs }, Cmd.none )
 
+        UpdateRFArg n i arg ->
+            let
+                fs =
+                    case Array.get i model.formulas of
+                        Just f -> Array.set i (RF.updateArg n arg f) model.formulas
+                        Nothing -> model.formulas
+            in
+            ( { model | formulas = fs }, Cmd.none )
+
+
+        UpdateRFTerm i term ->
+            let
+                fs =
+                    case Array.get i model.formulas of
+                        Just f -> Array.set i (RF.updateTerm term f) model.formulas
+                        Nothing -> model.formulas
+            in
+            ( { model | formulas = fs }, Cmd.none )
+
+        ApplyRecursionFormula _ ->
+            ( model, Cmd.none )
+
+        RemoveRecursionFormula i ->
+            let
+                fs = Array.append (Array.slice 0 i model.formulas) (Array.slice (i+1) (Array.length model.formulas) model.formulas)
+            in
+            ( { model | formulas = fs }, Cmd.none )
 
 -- VIEW
 
@@ -123,12 +153,34 @@ showTable tbl =
     |> table []
 
 
-showRecursionFormula : Array RecursionFormula -> Html Msg
+showRecursionFormula : Array RF.RecursionFormula -> Html Msg
 showRecursionFormula fs =
     ul
         []
         ( Array.toList fs
-          |> List.map (\f -> li [] [ text f ])
+          |> List.indexedMap
+                (\i -> \rf ->
+                    let
+                        divRf =
+                            div []
+                                [ text "dp["
+                                , input [ onInput (UpdateRFArg 1 i) ] [ text rf.arg1 ]
+                                , text "]["
+                                , input [ onInput (UpdateRFArg 2 i) ] [ text rf.arg2 ]
+                                , text "] = "
+                                , input [ onInput (UpdateRFTerm i) ] [ text rf.term ]
+                                ]
+                    in
+                    li []
+                        [ divRf
+                        , button
+                            [ onClick ( ApplyRecursionFormula i ) ]
+                            [ text "apply" ]
+                        , button
+                            [ onClick ( RemoveRecursionFormula i ) ]
+                            [ text "x" ]
+                        ]
+                )
         )
 
 
