@@ -29,10 +29,15 @@ main =
 type alias Table =
     { h : Int
     , w : Int
-    , table : Array (Array Int)
+    , t : Array (Array Int)
     }
 
-type alias Model = Table
+type alias RecursionFormula = String
+
+type alias Model =
+    { table : Table
+    , formulas : Array RecursionFormula
+    }
 
 
 initTable : Int -> Int -> Array (Array Int)
@@ -53,7 +58,9 @@ updateTable h w table =
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( Table 5 5 (initTable 5 5)
+    ( Model
+        (Table 5 5 (initTable 5 5))
+        Array.empty
     , Cmd.none)
 
 
@@ -63,6 +70,7 @@ init _ =
 type Msg
     = UpdateH String
     | UpdateW String
+    | AddRecursionFormula
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -73,21 +81,30 @@ update msg model =
                 Just h_ ->
                     let
                         h = Basics.max 1 h_
-                        table = updateTable h ( model.w ) model.table
+                        t = updateTable h ( model.table.w ) model.table.t
+                        table = { h = h, w = model.table.w, t = t }
                     in
-                    ( { model | table = table, h = h }, Cmd.none )
+                    ( { model | table = table }, Cmd.none )
                 Nothing ->
                     ( model, Cmd.none )
+
         UpdateW w_str ->
             case String.toInt w_str of
                 Just w_ ->
                     let
                         w = Basics.max 1 w_
-                        table = updateTable ( model.h ) w model.table
+                        t = updateTable ( model.table.h ) w model.table.t
+                        table = { h = model.table.h, w = w, t = t }
                     in
-                    ( { model | table = table, w = w }, Cmd.none )
+                    ( { model | table = table }, Cmd.none )
                 Nothing ->
                     ( model, Cmd.none )
+
+        AddRecursionFormula ->
+            let
+                fs = Array.push "dp[i][j] = dp[i][j-1] + dp[i-1][j]" model.formulas
+            in
+            ( { model | formulas = fs }, Cmd.none )
 
 
 -- VIEW
@@ -98,11 +115,22 @@ showRow row =
     |> List.map (\n -> td [] [ String.fromInt n |> text ])
     |> tr []
 
+
 showTable : Array (Array Int) -> Html Msg
 showTable tbl =
     Array.toList tbl
     |> List.map showRow
     |> table []
+
+
+showRecursionFormula : Array RecursionFormula -> Html Msg
+showRecursionFormula fs =
+    ul
+        []
+        ( Array.toList fs
+          |> List.map (\f -> li [] [ text f ])
+        )
+
 
 view : Model -> Html Msg
 view model =
@@ -115,7 +143,7 @@ view model =
             , input
                 [ onInput UpdateH
                 , type_ "number"
-                , model.h |> String.fromInt |> value
+                , model.table.h |> String.fromInt |> value
                 ]
                 []
             ]
@@ -125,9 +153,13 @@ view model =
             , input
                 [ onInput UpdateW
                 , type_ "number"
-                , model.w |> String.fromInt |> value
+                , model.table.w |> String.fromInt |> value
                 ]
                 []
             ]
-        , showTable model.table
+        , showTable model.table.t
+        , button
+            [ onClick AddRecursionFormula ]
+            [ text "漸化式を追加する" ]
+        , showRecursionFormula model.formulas
         ]
