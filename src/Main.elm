@@ -30,13 +30,13 @@ main =
 
 type alias Model =
     { table : DP.Table
-    , formulas : Array RF.RecursionFormula
+    , formulas : RF.RecursionForumulas
     }
 
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( Model ( DP.initTable 5 5 ) Array.empty
+    ( Model ( DP.initTable 5 5 ) ( RF.init () )
     , Cmd.none)
 
 
@@ -45,11 +45,14 @@ init _ =
 type Msg
     = UpdateH String
     | UpdateW String
+    | AddInitFormula
     | AddRecursionFormula
-    | UpdateRFArg Int Int String
-    | UpdateRFTerm Int String
-    | FixRecursionFormula Int
-    | RemoveRecursionFormula Int
+    | UpdateEdittingRFInit Int Int String
+    | UpdateEdittingRFRecursion Int Int String
+    | FixInit Int
+    | FixRecursion Int
+    | RemoveInit Int
+    | RemoveRecursion Int
     | ApplyRecursionFormulas
 
 
@@ -78,45 +81,29 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        AddInitFormula ->
+            ( { model | formulas = RF.addInit model.formulas }, Cmd.none )
+
         AddRecursionFormula ->
-            let
-                fs =
-                    if Array.length ( Array.filter RF.isEditting model.formulas ) == 0
-                    then Array.push (RF.init ()) model.formulas
-                    else model.formulas
-            in
-            ( { model | formulas = fs }, Cmd.none )
+            ( { model | formulas = RF.addRecursion model.formulas }, Cmd.none )
 
-        UpdateRFArg n i arg ->
-            let
-                fs =
-                    case Array.get i model.formulas of
-                        Just f -> Array.set i (RF.updateArg n arg f) model.formulas
-                        Nothing -> model.formulas
-            in
-            ( { model | formulas = fs }, Cmd.none )
+        UpdateEdittingRFInit row idx text ->
+            ( { model | formulas = RF.updateInit row idx text model.formulas }, Cmd.none )
 
+        UpdateEdittingRFRecursion row idx text ->
+            ( { model | formulas = RF.updateRecursion row idx text model.formulas }, Cmd.none )
 
-        UpdateRFTerm i term ->
-            let
-                fs =
-                    case Array.get i model.formulas of
-                        Just f -> Array.set i (RF.updateTerm term f) model.formulas
-                        Nothing -> model.formulas
-            in
-            ( { model | formulas = fs }, Cmd.none )
+        FixInit row ->
+            ( { model | formulas = RF.fixInit row model.formulas }, Cmd.none )
 
-        FixRecursionFormula i ->
-            case Array.get i model.formulas of
-                Just f ->
-                    ( {model | formulas = Array.set i (RF.fix f) model.formulas }, Cmd.none )
-                Nothing -> ( model, Cmd.none )
+        FixRecursion row ->
+            ( { model | formulas = RF.fixRecursion row model.formulas }, Cmd.none )
 
-        RemoveRecursionFormula i ->
-            let
-                fs = Array.append (Array.slice 0 i model.formulas) (Array.slice (i+1) (Array.length model.formulas) model.formulas)
-            in
-            ( { model | formulas = fs }, Cmd.none )
+        RemoveInit row ->
+            ( { model | formulas = RF.removeInit row model.formulas }, Cmd.none )
+
+        RemoveRecursion row ->
+            ( { model | formulas = RF.removeRecursion row model.formulas }, Cmd.none )
 
         ApplyRecursionFormulas -> ( model, Cmd.none )
             
@@ -137,35 +124,39 @@ showTable tbl =
     |> table []
 
 
-showRecursionFormula : Array RF.RecursionFormula -> Html Msg
-showRecursionFormula fs =
+showRecursionFormula : Bool -> Array RF.Formula -> Html Msg
+showRecursionFormula isInit fs =
     ul
         []
         ( Array.toList fs
           |> List.indexedMap
-                (\i -> \rf ->
+                (\i -> \f ->
                     let
+                        ( updateMsg, fixMsg, removeMsg ) =
+                            if isInit
+                            then ( UpdateEdittingRFInit i, FixInit i, RemoveInit i )
+                            else ( UpdateEdittingRFRecursion i, FixRecursion i, RemoveRecursion i )
                         divRf =
-                            case rf of
-                                RF.Editting f ->
+                            case f of
+                                RF.Editting ef ->
                                     div []
                                         [ text "dp["
-                                        , input [ onInput (UpdateRFArg 1 i) ] [ text f.arg1 ]
+                                        , input [ onInput ( updateMsg 0 ) ] [ text ef.arg1 ]
                                         , text "]["
-                                        , input [ onInput (UpdateRFArg 2 i) ] [ text f.arg2 ]
+                                        , input [ onInput ( updateMsg 1 ) ] [ text ef.arg2 ]
                                         , text "] = "
-                                        , input [ onInput (UpdateRFTerm i) ] [ text f.term ]
+                                        , input [ onInput ( updateMsg 2 ) ] [ text ef.term ]
                                         ]
                                 _ ->
-                                    div [] [ RF.stringOf rf |> text ]
+                                    div [] [ RF.stringOfFormula f |> text ]
                     in
                     li []
                         [ divRf
                         , button
-                            [ onClick ( FixRecursionFormula i ) ]
+                            [ onClick fixMsg ]
                             [ text "fix" ]
                         , button
-                            [ onClick ( RemoveRecursionFormula i ) ]
+                            [ onClick removeMsg ]
                             [ text "x" ]
                         ]
                 )
@@ -199,10 +190,16 @@ view model =
             ]
         , showTable model.table.t
         , button
-            [ onClick AddRecursionFormula ]
-            [ text "add" ]
-        , button
             [ onClick ApplyRecursionFormulas ]
             [ text "apply" ]
-        , showRecursionFormula model.formulas
+        , h4 [] [ text "DP初期条件" ]
+        , button
+            [ onClick AddInitFormula ]
+            [ text "add" ]
+        , showRecursionFormula True model.formulas.init
+        , h4 [] [ text "DP漸化式" ]
+        , button
+            [ onClick AddRecursionFormula ]
+            [ text "add" ]
+        , showRecursionFormula False model.formulas.recursion
         ]
