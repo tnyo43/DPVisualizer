@@ -1,32 +1,22 @@
-module Expr exposing (..)
+module Expr exposing (Term(..), Op(..), parse, stringOf)
 
 import Parser exposing (..)
 import Set exposing (empty)
 
 
-type ExprOp = Add | Sub
-
-type TermOp = Mul | Div | Mod
-
-type Expr
-    = AppExpr ExprOp Term Expr
-    | ETerm Term
+type Op = Add | Sub | Mul | Div | Mod
 
 type Term
-    = AppTerm TermOp Factor Term
-    | TFactor Factor
-
-type Factor
-    = FExpr Expr
+    = App Op Term Term
     | Con Int
     | Var String
-    | Dp Expr Expr
+    | Dp Term Term
 
 
-exprParser : Parser Expr
-exprParser =
+parser : Parser Term
+parser =
     oneOf
-        [ succeed (\term op expr -> AppExpr op term expr)
+        [ succeed (\term op expr -> App op term expr)
             |. backtrackable spaces
             |= backtrackable termParser
             |. spaces
@@ -35,15 +25,15 @@ exprParser =
                 , map (\_ -> Sub) (symbol "-")
                 ]
             |. spaces
-            |= lazy (\_ -> exprParser)
+            |= lazy (\_ -> parser)
             |. spaces
-        , map ETerm termParser
+        , termParser
         ]
 
 termParser : Parser Term
 termParser =
     oneOf
-        [ succeed (\factor op term -> AppTerm op factor term)
+        [ succeed (\factor op term -> App op factor term)
             |. backtrackable spaces
             |= backtrackable factorParser
             |. backtrackable spaces
@@ -55,17 +45,17 @@ termParser =
             |. backtrackable spaces
             |= (lazy (\_ -> termParser))
             |. spaces
-        , map TFactor factorParser
+        , factorParser
         ]
 
-factorParser : Parser Factor
+factorParser : Parser Term
 factorParser =
     oneOf
-        [ succeed FExpr
+        [ succeed (\x -> x)
             |. backtrackable spaces
             |. symbol "("
             |. spaces
-            |= (lazy (\_ -> exprParser))
+            |= (lazy (\_ -> parser))
             |. spaces
             |. symbol ")"
             |. spaces
@@ -73,11 +63,11 @@ factorParser =
             |. backtrackable spaces
             |. symbol "dp["
             |. spaces
-            |= (lazy (\_ -> exprParser))
+            |= (lazy (\_ -> parser))
             |. spaces
             |. symbol "]["
             |. spaces
-            |= (lazy (\_ -> exprParser))
+            |= (lazy (\_ -> parser))
             |. spaces
             |. symbol "]"
         , map Con int
@@ -91,48 +81,27 @@ factorParser =
         ]
 
 
-parseExpr : String ->  Result (List DeadEnd) Expr
-parseExpr str =
-    run exprParser str
+parse : String ->  Result (List DeadEnd) Term
+parse str =
+    run parser str
 
 
-stringOf : Expr -> String
+stringOf : Term -> String
 stringOf expr =
     case expr of
-        AppExpr op t e ->
+        App op t e ->
             let
-                s1 = stringOfTerm t
+                s1 = stringOf t
                 sop =
                     case op of
                         Add -> " + "
                         Sub -> " - "
-                s2 = stringOf e
-            in
-            s1 ++ sop ++ s2
-        ETerm t -> stringOfTerm t
-
-stringOfTerm : Term -> String
-stringOfTerm term =
-    case term of
-        AppTerm op f t ->
-            let
-                s1 = stringOfFactor f
-                sop =
-                    case op of
                         Mul -> " * "
                         Div -> " / "
                         Mod -> " % "
-                s2 = stringOfTerm t
+                s2 = stringOf e
             in
             s1 ++ sop ++ s2
-        TFactor t -> stringOfFactor t
-
-
-stringOfFactor : Factor -> String
-stringOfFactor factor =
-    case factor of
-        FExpr exp ->
-            "(" ++ stringOf exp ++ ")"
         Con n ->
             String.fromInt n
         Var v ->

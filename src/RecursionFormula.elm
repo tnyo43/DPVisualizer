@@ -10,9 +10,9 @@ type alias RFEditting =
     }
 
 type alias RFApplied =
-    { arg1 : Expr.Expr
-    , arg2 : Expr.Expr
-    , term : Expr.Expr
+    { arg1 : Expr.Term
+    , arg2 : Expr.Term
+    , term : Expr.Term
     }
 
 type RecursionFormula
@@ -48,9 +48,9 @@ apply f =
         Applied _ -> f
         Editting rf ->
             let
-                rf_ = Expr.parseExpr rf.arg1
-                        |> Result.andThen (\arg1 -> Expr.parseExpr rf.arg2
-                        |> Result.andThen (\arg2 -> Expr.parseExpr rf.term
+                rf_ = Expr.parse rf.arg1
+                        |> Result.andThen (\arg1 -> Expr.parse rf.arg2
+                        |> Result.andThen (\arg2 -> Expr.parse rf.term
                         |> Result.andThen (\term -> RFApplied arg1 arg2 term |> Ok)))
             in
             case rf_ of
