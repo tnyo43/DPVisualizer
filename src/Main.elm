@@ -2,6 +2,7 @@ port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
+import DPTable as DP
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -27,41 +28,16 @@ main =
 
 -- MODEL
 
-type alias Table =
-    { h : Int
-    , w : Int
-    , t : Array (Array Int)
-    }
-
 type alias Model =
-    { table : Table
+    { table : DP.Table
     , formulas : Array RF.RecursionFormula
     }
 
 
-initTable : Int -> Int -> Array (Array Int)
-initTable h w =
-    Array.initialize h (\_ -> Array.initialize w (\_ -> 0))
-
-
-updateTable : Int -> Int -> Array (Array Int) -> Array (Array Int)
-updateTable h w table =
-    Array.initialize h (\i ->
-        Array.initialize w (\j ->
-            case Array.get i table |> Maybe.andThen (Array.get j) of
-                Nothing -> 0
-                Just x -> x
-        )
-    )
-
-
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( Model
-        (Table 5 5 (initTable 5 5))
-        Array.empty
+    ( Model ( DP.initTable 5 5 ) Array.empty
     , Cmd.none)
-
 
 
 -- UPDATE
@@ -72,8 +48,9 @@ type Msg
     | AddRecursionFormula
     | UpdateRFArg Int Int String
     | UpdateRFTerm Int String
-    | ApplyRecursionFormula Int
+    | FixRecursionFormula Int
     | RemoveRecursionFormula Int
+    | ApplyRecursionFormulas
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -84,8 +61,7 @@ update msg model =
                 Just h_ ->
                     let
                         h = Basics.max 1 h_
-                        t = updateTable h ( model.table.w ) model.table.t
-                        table = { h = h, w = model.table.w, t = t }
+                        table = DP.updateSize h ( model.table.w ) model.table
                     in
                     ( { model | table = table }, Cmd.none )
                 Nothing ->
@@ -96,8 +72,7 @@ update msg model =
                 Just w_ ->
                     let
                         w = Basics.max 1 w_
-                        t = updateTable ( model.table.h ) w model.table.t
-                        table = { h = model.table.h, w = w, t = t }
+                        table = DP.updateSize ( model.table.h ) w model.table
                     in
                     ( { model | table = table }, Cmd.none )
                 Nothing ->
@@ -131,10 +106,10 @@ update msg model =
             in
             ( { model | formulas = fs }, Cmd.none )
 
-        ApplyRecursionFormula i ->
+        FixRecursionFormula i ->
             case Array.get i model.formulas of
                 Just f ->
-                    ( {model | formulas = Array.set i (RF.apply f) model.formulas }, Cmd.none )
+                    ( {model | formulas = Array.set i (RF.fix f) model.formulas }, Cmd.none )
                 Nothing -> ( model, Cmd.none )
 
         RemoveRecursionFormula i ->
@@ -142,6 +117,9 @@ update msg model =
                 fs = Array.append (Array.slice 0 i model.formulas) (Array.slice (i+1) (Array.length model.formulas) model.formulas)
             in
             ( { model | formulas = fs }, Cmd.none )
+
+        ApplyRecursionFormulas -> ( model, Cmd.none )
+            
 
 -- VIEW
 
@@ -184,8 +162,8 @@ showRecursionFormula fs =
                     li []
                         [ divRf
                         , button
-                            [ onClick ( ApplyRecursionFormula i ) ]
-                            [ text "apply" ]
+                            [ onClick ( FixRecursionFormula i ) ]
+                            [ text "fix" ]
                         , button
                             [ onClick ( RemoveRecursionFormula i ) ]
                             [ text "x" ]
@@ -222,6 +200,9 @@ view model =
         , showTable model.table.t
         , button
             [ onClick AddRecursionFormula ]
-            [ text "漸化式を追加する" ]
+            [ text "add" ]
+        , button
+            [ onClick ApplyRecursionFormulas ]
+            [ text "apply" ]
         , showRecursionFormula model.formulas
         ]

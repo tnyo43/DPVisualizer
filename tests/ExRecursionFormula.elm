@@ -19,10 +19,10 @@ testParseFail str =
         \_ -> Expect.err ( parse str )
 
 
-testApplyExpr : String -> RecursionFormula -> RecursionFormula -> Test
-testApplyExpr str rf expected =
+testFixExpr : String -> RecursionFormula -> RecursionFormula -> Test
+testFixExpr str rf expected =
     test str <|
-        \_ -> Expect.equal expected ( apply rf )
+        \_ -> Expect.equal expected ( fix rf )
 
 
 suite : Test
@@ -52,20 +52,20 @@ suite =
                 , testParseFail "1%"
                 ]
             ]
-        , describe "try apply"
-            [ testApplyExpr
-                "Appliedなら変更しない"
-                ( RFApplied (Con 0) (Con 0) (Con 1) |> Applied )
-                ( RFApplied (Con 0) (Con 0) (Con 1) |> Applied )
-            , testApplyExpr
+        , describe "try fix"
+            [ testFixExpr
+                "Fixedなら変更しない"
+                ( RFFixed (Con 0) (Con 0) (Con 1) |> Fixed )
+                ( RFFixed (Con 0) (Con 0) (Con 1) |> Fixed )
+            , testFixExpr
                 "dp[0][0] = 1 : success!"
                 ( RFEditting "0" "0" "1" |> Editting )
-                ( RFApplied (Con 0) (Con 0) (Con 1) |> Applied )
-            , testApplyExpr
+                ( RFFixed (Con 0) (Con 0) (Con 1) |> Fixed )
+            , testFixExpr
                 "dp[i][j] = i + j : success!"
                 ( RFEditting "i" "j" "i+j" |> Editting )
-                ( RFApplied (Var "i") (Var "j") (App Add (Var "i") (Var "j")) |> Applied )
-            , testApplyExpr
+                ( RFFixed (Var "i") (Var "j") (App Add (Var "i") (Var "j")) |> Fixed )
+            , testFixExpr
                 "argsかtermでparseに失敗すると（i+）そのまま"
                 ( RFEditting "0" "i+" "i+j" |> Editting )
                 ( RFEditting "0" "i+" "i+j" |> Editting )

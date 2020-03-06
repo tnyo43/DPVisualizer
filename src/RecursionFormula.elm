@@ -9,7 +9,7 @@ type alias RFEditting =
     , term : String
     }
 
-type alias RFApplied =
+type alias RFFixed =
     { arg1 : Expr.Term
     , arg2 : Expr.Term
     , term : Expr.Term
@@ -17,7 +17,8 @@ type alias RFApplied =
 
 type RecursionFormula
     = Editting RFEditting
-    | Applied RFApplied
+    | Fixed RFFixed
+
 
 init : () -> RecursionFormula
 init _ =
@@ -42,19 +43,19 @@ updateTerm term rf =
         _ -> rf
 
 
-apply : RecursionFormula -> RecursionFormula
-apply f =
+fix : RecursionFormula -> RecursionFormula
+fix f =
     case f of
-        Applied _ -> f
+        Fixed _ -> f
         Editting rf ->
             let
                 rf_ = Expr.parse rf.arg1
                         |> Result.andThen (\arg1 -> Expr.parse rf.arg2
                         |> Result.andThen (\arg2 -> Expr.parse rf.term
-                        |> Result.andThen (\term -> RFApplied arg1 arg2 term |> Ok)))
+                        |> Result.andThen (\term -> RFFixed arg1 arg2 term |> Ok)))
             in
             case rf_ of
-                Ok rrf -> Applied rrf
+                Ok rrf -> Fixed rrf
                 _ -> f
 
 
@@ -67,6 +68,12 @@ isEditting rf =
 
 stringOf : RecursionFormula -> String
 stringOf rf =
-    case rf of
-        Applied f -> "dp[" ++ (Expr.stringOf f.arg1) ++ "][" ++ (Expr.stringOf f.arg2) ++ "] = " ++  (Expr.stringOf f.term)
-        Editting f -> "dp[" ++ f.arg1 ++ "][" ++ f.arg2 ++ "] = " ++  f.term
+    let
+        (s1, s2, st) =
+            case rf of
+                Fixed f ->
+                    ( (Expr.stringOf f.arg1), (Expr.stringOf f.arg2), (Expr.stringOf f.term) )
+                Editting f ->
+                    ( f.arg1, f.arg2, f.term )
+    in
+    "dp[" ++ s1 ++ "][" ++ s2 ++ "] = " ++  st
