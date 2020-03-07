@@ -1,5 +1,6 @@
-module Expr exposing (Term(..), Op(..), parse, stringOf)
+module Expr exposing (Term(..), Op(..), parse, eval, stringOf)
 
+import Dict exposing (Dict)
 import Parser exposing (..)
 import Set exposing (empty)
 
@@ -84,6 +85,27 @@ factorParser =
 parse : String ->  Result (List DeadEnd) Term
 parse str =
     run parser str
+
+
+eval : Dict String Int -> Term -> Maybe Int
+eval dict trm =
+    case trm of
+        App op t1 t2 ->
+            eval dict t1 |> Maybe.andThen (\v1 ->
+            eval dict t2 |> Maybe.andThen (\v2 ->
+                ( case op of
+                    Add -> v1 + v2
+                    Sub -> v1 - v2
+                    Mul -> v1 * v2
+                    Div -> v1 // v2
+                    Mod -> modBy v2 v1
+                ) |> Just
+            ))
+        Con n ->
+            Just n
+        Var v ->
+            Dict.get v dict
+        _ -> Just 0 -- TODO : implement eval dp table
 
 
 stringOf : Term -> String
