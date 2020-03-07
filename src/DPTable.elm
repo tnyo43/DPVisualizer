@@ -1,7 +1,8 @@
 module DPTable exposing (..)
 
 import Array exposing (Array)
-import Expr exposing (Term(..))
+import Dict exposing (Dict)
+import Expr exposing (Term(..), eval)
 import RecursionFormula exposing (..)
 
 type alias Table =
@@ -43,26 +44,30 @@ editTable r c n tbl =
 apply : Table -> FFixed -> Table
 apply tbl frm =
     let
-        ( vw, idxW ) =
+        ( vw_, idxW ) =
             case frm.arg2 of
-                Var vw_ ->
-                    ( vw_, List.repeat tbl.w vw_ |> List.indexedMap (\i v -> (v, i)) )
+                Var v ->
+                    ( v, List.repeat tbl.w v |> List.indexedMap (\i vr -> (vr, i)) )
                 Con w ->
                     ( "_", List.singleton ("_", w) )
                 _ -> ( "_", [] )
         idx =
             case frm.arg1 of
                 Var vh ->
-                    if vh == vw
+                    if vh == vw_
                     then List.repeat ( min tbl.h tbl.w ) vh |> List.indexedMap (\i v -> ( (v, i), (v, i) ))
                     else List.indexedMap (\h row -> List.repeat tbl.h row |> List.indexedMap (\i c -> ( (vh, i), c ))) idxW |> List.concat
                 Con h ->
                     List.map (\tup -> ( ("_", h), tup )) idxW
                 _ -> []
-        val =
-            case frm.term of
-                Con x -> x
-                _ -> 0 -- TODO: implement not constant case
     in
-    List.foldl (\((_, h), (_, w)) accTbl -> editTable h w val accTbl) tbl idx
-            
+    List.foldl
+        (\((vh, h), (vw, w)) acc ->
+            acc |> Maybe.andThen (\accTbl ->
+            eval (Dict.fromList [(vh, h), (vw, w)]) frm.term |> Maybe.andThen (\val ->
+                editTable h w val accTbl |> Just
+            ))
+        )
+        (Just tbl) idx
+    |> Maybe.withDefault tbl
+    

@@ -3,7 +3,7 @@ module ExDPTable exposing (..)
 import Array exposing (Array)
 import DPTable exposing (..)
 import Expect exposing (Expectation)
-import Expr exposing (Term(..))
+import Expr exposing (Term(..), Op(..))
 import Fuzz exposing (Fuzzer, int, list, string)
 import RecursionFormula exposing (..)
 import Test exposing (..)
@@ -49,5 +49,13 @@ suite =
                 "dp[i][j] = 1はすべて1"
                 ( FFixed (Var "i") (Var "j") (Con 1) )
                 ( editMultipleCels (initTable_5_5 ()) (List.range 0 25 |> List.map (\x -> (x // 5, modBy 5 x, 1))) )
+            , testApplyDPInit
+                "dp[i][0] = i, 引数にに使う変数はtermに使用できる"
+                ( FFixed (Var "i") (Con 0) (Var "i") )
+                ( editMultipleCels (initTable_5_5 ()) [(0,0,0), (1,0,1), (2,0,2), (3,0,3), (4,0,4)] )
+            , testApplyDPInit
+                "dp[i][j] = i+j"
+                ( FFixed (Var "i") (Var "j") ( App Add (Var "i") (Var "j") ) )
+                ( editMultipleCels (initTable_5_5 ()) (List.range 0 25 |> List.map (\x -> (x // 5, modBy 5 x, x // 5 + modBy 5 x))) )
             ]
         ]
