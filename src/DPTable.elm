@@ -64,7 +64,7 @@ apply tbl frm =
     List.foldl
         (\((vh, h), (vw, w)) acc ->
             acc |> Maybe.andThen (\accTbl ->
-            eval (Dict.fromList [(vh, h), (vw, w)]) frm.term |> Maybe.andThen (\val ->
+            eval (Dict.fromList [(vh, h), (vw, w)]) frm.body |> Maybe.andThen (\val ->
                 editTable h w val accTbl |> Just
             ))
         )

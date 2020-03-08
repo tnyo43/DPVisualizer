@@ -7,13 +7,13 @@ import Expr as Expr
 type alias FEditting =
     { arg1 : String
     , arg2 : String
-    , term : String
+    , body : String
     }
 
 type alias FFixed =
     { arg1 : Expr.Term
     , arg2 : Expr.Term
-    , term : Expr.Term
+    , body : Expr.Term
     }
 
 type Formula
@@ -34,24 +34,6 @@ initFEditting _ =
 init : () -> RecursionForumulas
 init _ =
     RecursionForumulas ( Array.empty ) ( Array.empty )
-
-
-updateArg : Int -> String -> Formula -> Formula
-updateArg n arg rf =
-    case rf of
-        Editting f ->
-            let
-                ( arg1, arg2 ) = if n == 1 then ( arg, f.arg2 ) else ( f.arg1, arg )
-            in
-            Editting { f | arg1 = arg1, arg2 = arg2 }
-        _ -> rf
-
-
-updateTerm : String -> Formula -> Formula
-updateTerm term rf =
-    case rf of
-        Editting f -> Editting { f | term = term }
-        _ -> rf
 
 
 isEditting : Formula -> Bool
@@ -98,13 +80,13 @@ update row idx text fs =
     case Array.get row fs of
         Just ( Editting ef ) ->
             let
-                ( a1, a2, t ) =
+                ( a1, a2, b ) =
                     case idx of
-                        0 -> ( text, ef.arg2, ef.term )
-                        1 -> ( ef.arg1, text, ef.term )
+                        0 -> ( text, ef.arg2, ef.body )
+                        1 -> ( ef.arg1, text, ef.body )
                         _ -> ( ef.arg1, ef.arg2, text )
             in
-            Array.set row ( Editting { ef | arg1 = a1, arg2 = a2, term = t } ) fs
+            Array.set row ( Editting { ef | arg1 = a1, arg2 = a2, body = b } ) fs
         _ -> fs
 
 
@@ -126,8 +108,8 @@ fix frm =
                 triedFrm =
                     Expr.parse ef.arg1
                     |> Result.andThen (\arg1 -> Expr.parse ef.arg2
-                    |> Result.andThen (\arg2 -> Expr.parse ef.term
-                    |> Result.andThen (\term -> FFixed arg1 arg2 term |> Ok)))
+                    |> Result.andThen (\arg2 -> Expr.parse ef.body
+                    |> Result.andThen (\body -> FFixed arg1 arg2 body |> Ok)))
             in
             case triedFrm of
                 Ok ff -> Fixed ff
@@ -158,8 +140,8 @@ stringOfFormula f =
         (s1, s2, st) =
             case f of
                 Fixed ff ->
-                    ( (Expr.stringOf ff.arg1), (Expr.stringOf ff.arg2), (Expr.stringOf ff.term) )
+                    ( (Expr.stringOf ff.arg1), (Expr.stringOf ff.arg2), (Expr.stringOf ff.body) )
                 Editting ef ->
-                    ( ef.arg1, ef.arg2, ef.term )
+                    ( ef.arg1, ef.arg2, ef.body )
     in
     "dp[" ++ s1 ++ "][" ++ s2 ++ "] = " ++  st

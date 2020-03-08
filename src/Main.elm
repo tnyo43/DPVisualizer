@@ -145,7 +145,7 @@ showRecursionFormula isInit fs =
                                         , text "]["
                                         , input [ onInput ( updateMsg 1 ) ] [ text ef.arg2 ]
                                         , text "] = "
-                                        , input [ onInput ( updateMsg 2 ) ] [ text ef.term ]
+                                        , input [ onInput ( updateMsg 2 ) ] [ text ef.body ]
                                         ]
                                 _ ->
                                     div [] [ RF.stringOfFormula f |> text ]
