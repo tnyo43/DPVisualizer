@@ -2,7 +2,7 @@ module DPTable exposing (..)
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Expr exposing (Term(..), eval)
+import Expr exposing (Term(..), For, eval)
 import RecursionFormula exposing (..)
 
 type alias Table =
@@ -41,34 +41,48 @@ editTable r c n tbl =
             tbl
 
 
+makeForCombinations : Dict String Int -> List For -> Maybe (List (List (String, Int)))
+makeForCombinations dict fors =
+    case fors of
+        [] -> Just [[]]
+        for :: rest ->
+            eval dict for.begin |> Maybe.andThen (\begin ->
+            eval dict for.end |> Maybe.andThen (\end ->
+                let
+                    comb =
+                        List.range begin (end-1)
+                        |> List.map ( \n -> makeForCombinations ( Dict.insert for.var n dict ) rest |> (Maybe.andThen (List.map ( (::) (for.var, n) ) >> Just) ))
+                in
+                List.foldr
+                    (\cmb acc ->
+                        cmb |> Maybe.andThen (\c ->
+                        acc |> Maybe.andThen (\a ->
+                            c :: a |> Just))
+                    )
+                    (Just [])
+                    comb
+                |> Maybe.andThen (List.concat >> Just)
+            ))
+
+
 apply : Table -> FFixed -> Table
 apply tbl frm =
-    let
-        ( vw_, idxW ) =
-            case frm.arg2 of
-                Var v ->
-                    ( v, List.repeat tbl.w v |> List.indexedMap (\i vr -> (vr, i)) )
-                Con w ->
-                    ( "_", List.singleton ("_", w) )
-                _ -> ( "_", [] )
-        idx =
-            case frm.arg1 of
-                Var vh ->
-                    if vh == vw_
-                    then List.repeat ( min tbl.h tbl.w ) vh |> List.indexedMap (\i v -> ( (v, i), (v, i) ))
-                    else List.indexedMap (\h row -> List.repeat tbl.h row |> List.indexedMap (\i c -> ( (vh, i), c ))) idxW |> List.concat
-                Con h ->
-                    List.map (\tup -> ( ("_", h), tup )) idxW
-                _ -> []
-    in
-    List.foldl
-        (\((vh, h), (vw, w)) acc ->
-            acc |> Maybe.andThen (\accTbl ->
-            eval (Dict.fromList [(vh, h), (vw, w)]) frm.body |> Maybe.andThen (\val ->
-                editTable h w val accTbl |> Just
-            ))
+    makeForCombinations ( Dict.fromList [("H", tbl.h), ("W", tbl.w)] ) (Array.toList frm.for)
+    |> Maybe.andThen
+        ( List.foldl
+            (\idx acc ->
+                let
+                    dict = Dict.fromList idx
+                in
+                acc |> Maybe.andThen (\accTbl ->
+                eval dict frm.arg1 |> Maybe.andThen (\arg1 ->
+                eval dict frm.arg2 |> Maybe.andThen (\arg2 ->
+                eval dict frm.body |> Maybe.andThen (\val ->
+                    editTable arg1 arg2 val accTbl |> Just
+                ))))
+            )
+            (Just tbl)
         )
-        (Just tbl) idx
     |> Maybe.withDefault tbl
 
 
