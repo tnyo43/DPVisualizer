@@ -70,4 +70,8 @@ apply tbl frm =
         )
         (Just tbl) idx
     |> Maybe.withDefault tbl
-    
+
+
+applyFormulas : Table -> Array FFixed -> Table
+applyFormulas tbl frms =
+    Array.foldl (\f accTbl -> apply accTbl f) tbl frms

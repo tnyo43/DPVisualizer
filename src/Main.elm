@@ -105,7 +105,11 @@ update msg model =
         RemoveRecursion row ->
             ( { model | formulas = RF.removeRecursion row model.formulas }, Cmd.none )
 
-        ApplyRecursionFormulas -> ( model, Cmd.none )
+        ApplyRecursionFormulas ->
+            let
+                tbl = DP.initTable model.table.h model.table.w
+            in
+            ( { model | table = DP.applyFormulas tbl <| RF.fixedFormulasOf model.formulas }, Cmd.none )
             
 
 -- VIEW

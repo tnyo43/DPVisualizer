@@ -134,6 +134,16 @@ fixRecursion row rf =
     { rf | recursion = fixFormulas row rf.recursion }
 
 
+fixedFormulasOf : RecursionForumulas -> Array FFixed
+fixedFormulasOf rf =
+    Array.append rf.init rf.recursion
+    |> Array.foldl
+        (\f accArray -> case f of
+            Fixed ff -> Array.push ff accArray
+            _ -> accArray
+        ) Array.empty
+
+
 stringOfFormula : Formula -> String
 stringOfFormula f =
     let
