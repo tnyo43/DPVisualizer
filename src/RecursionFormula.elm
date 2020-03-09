@@ -8,12 +8,14 @@ type alias FEditting =
     { arg1 : String
     , arg2 : String
     , body : String
+    , for : Array ( String, String, String )
     }
 
 type alias FFixed =
     { arg1 : Expr.Term
     , arg2 : Expr.Term
     , body : Expr.Term
+    , for : Array Expr.For
     }
 
 type Formula
@@ -28,7 +30,7 @@ type alias RecursionForumulas =
 
 initFEditting : () -> Formula
 initFEditting _ =
- FEditting "0" "0" "1" |> Editting
+ FEditting "0" "0" "1" Array.empty |> Editting
 
 
 init : () -> RecursionForumulas
@@ -106,10 +108,12 @@ fix frm =
         Editting ef ->
             let
                 triedFrm =
-                    Expr.parse ef.arg1
-                    |> Result.andThen (\arg1 -> Expr.parse ef.arg2
-                    |> Result.andThen (\arg2 -> Expr.parse ef.body
-                    |> Result.andThen (\body -> FFixed arg1 arg2 body |> Ok)))
+                    Expr.parse ef.arg1 |> Result.andThen (\arg1 ->
+                    Expr.parse ef.arg2 |> Result.andThen (\arg2 ->
+                    Expr.parse ef.body |> Result.andThen (\body ->
+                    Expr.parseForArray ef.for |> Result.andThen (\for ->
+                        FFixed arg1 arg2 body for |> Ok
+                    ))))
             in
             case triedFrm of
                 Ok ff -> Fixed ff

@@ -1,5 +1,6 @@
-module Expr exposing (Term(..), Op(..), parse, eval, stringOf)
+module Expr exposing (Term(..), Op(..), For, parse, parseFor, parseForArray, eval, stringOf)
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Parser exposing (..)
 import Set exposing (empty)
@@ -12,6 +13,12 @@ type Term
     | Con Int
     | Var String
     | Dp Term Term
+
+type alias For =
+    { var : String
+    , begin : Term
+    , end : Term
+    }
 
 
 parser : Parser Term
@@ -85,6 +92,30 @@ factorParser =
 parse : String ->  Result (List DeadEnd) Term
 parse str =
     run parser str
+
+parseFor : (String, String, String) -> Result (List DeadEnd) For
+parseFor (var, begin, end) =
+    if String.all Char.isAlpha var
+    then
+        run parser begin |> Result.andThen (\b ->
+        run parser end |> Result.andThen (\e ->
+            For var b e |> Ok
+        ))
+    else
+        Err []
+
+
+parseForArray : Array (String, String, String) -> Result (List DeadEnd) (Array For)
+parseForArray fors =
+    Array.foldl
+        (\for ->
+            Result.andThen (\array ->
+                parseFor for
+                |> Result.andThen (\f -> Array.push f array |> Ok)
+            )
+        )
+        (Ok Array.empty)
+        fors
 
 
 eval : Dict String Int -> Term -> Maybe Int

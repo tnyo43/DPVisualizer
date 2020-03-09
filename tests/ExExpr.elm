@@ -1,5 +1,6 @@
 module ExExpr exposing (..)
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Expect exposing (Expectation)
 import Expr exposing (..)
@@ -17,6 +18,30 @@ testParseFail : String -> Test
 testParseFail str =
     test str <|
         \_ -> Expect.err ( parse str )
+
+
+testParseFor : ( String, String, String ) -> For -> Test
+testParseFor (v, b, e) for =
+    test (v ++ ", " ++ b ++ ", " ++ e) <|
+        \_ -> Expect.equal ( Ok for ) ( parseFor (v, b, e) )
+
+
+testParseForFail : ( String, String, String ) -> Test
+testParseForFail (v, b, e) =
+    test (v ++ ", " ++ b ++ ", " ++ e) <|
+        \_ -> Expect.err ( parseFor (v, b, e) )
+
+
+testParseForArray : Array ( String, String, String ) -> Array For -> Test
+testParseForArray fors expected =
+    test (Array.foldl (\(v,b,e) acc -> acc ++ " [" ++ (v ++ ", " ++ b ++ ", " ++ e ++ "]") ) "" fors) <|
+        \_ -> Expect.equal ( Ok expected ) ( parseForArray fors )
+
+
+testParseForArrayFail : Array ( String, String, String ) -> Test
+testParseForArrayFail fors =
+    test (Array.foldl (\(v,b,e) acc -> acc ++ " [" ++ (v ++ ", " ++ b ++ ", " ++ e ++ "]") ) "" fors) <|
+        \_ -> Expect.err ( parseForArray fors )
 
 
 testEval : String -> Term -> Dict String Int -> Maybe Int -> Test
@@ -61,6 +86,27 @@ suite = describe "Test Expr"
             [ testParseFail "+1"
             , testParseFail "1+"
             , testParseFail "1%"
+            ]
+        ]
+    , describe "for parser"
+        [ describe "parseが成功"
+            [ testParseFor ("i", "0", "10") (For "i" (Con 0) (Con 10))
+            , testParseFor ("w", "a", "b + 1") (For "w" (Var "a") (App Add (Var "b") (Con 1)))
+            ]
+        , describe "parseが失敗"
+            [ testParseForFail ("0", "0", "0")
+            , testParseForFail ("i+1", "0", "0")
+            , testParseForFail ("dp[0][0]", "0", "0")
+            ]
+        , describe "for arrayのparse"
+            [ describe "全て成功すると成功"
+                [ testParseForArray
+                    ( Array.fromList [("i", "0", "10"), ("w", "a", "b + 1")] )
+                    ( Array.fromList [(For "i" (Con 0) (Con 10)), (For "w" (Var "a") (App Add (Var "b") (Con 1)))] )
+                ]
+            , describe "一つでも失敗すると失敗"
+                [ testParseForArrayFail ( Array.fromList [("i+1", "0", "10"), ("w", "a", "b + 1")] )
+                ]
             ]
         ]
     , describe "eval"
