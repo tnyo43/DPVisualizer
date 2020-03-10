@@ -102,6 +102,71 @@ updateRecursion row idx text rf =
     { rf | recursion = update row idx text rf.recursion }
 
 
+addInitFor : Int -> RecursionForumulas -> RecursionForumulas
+addInitFor row rf =
+    case Array.get row rf.init of
+        Just ( Editting ef ) ->
+            { rf | init = Array.set row ( Editting { ef | for = Array.push ( "", "", "" ) ef.for } ) rf.init }
+        _ -> rf
+
+
+addRecursionFor : Int -> RecursionForumulas -> RecursionForumulas
+addRecursionFor row rf =
+    case Array.get row rf.recursion of
+        Just ( Editting ef ) ->
+            { rf | recursion = Array.set row ( Editting { ef | for = Array.push ( "", "", "" ) ef.for } ) rf.recursion }
+        _ -> rf
+
+
+resetInitFor : Int -> RecursionForumulas -> RecursionForumulas
+resetInitFor row rf =
+    case Array.get row rf.init of
+        Just ( Editting ef ) ->
+            { rf | init = Array.set row ( Editting { ef | for = Array.empty } ) rf.init }
+        _ -> rf
+
+
+resetRecursionFor : Int -> RecursionForumulas -> RecursionForumulas
+resetRecursionFor row rf =
+    case Array.get row rf.recursion of
+        Just ( Editting ef ) ->
+            { rf | recursion = Array.set row ( Editting { ef | for = Array.empty } ) rf.recursion }
+        _ -> rf
+
+
+updateFor : Int -> Int -> Int -> String -> Array Formula -> Array Formula
+updateFor row rowFor idx text fs =
+    case Array.get row fs of
+        Just ( Editting ef ) ->
+            let
+                forArray =
+                    Array.get rowFor ef.for |> Maybe.andThen (\(var, begin, end) ->
+                        Array.set
+                            rowFor
+                            ( case idx of
+                                    0 -> ( text, begin, end )
+                                    1 -> ( var, text, end )
+                                    _ -> ( var, begin, text )
+                            )
+                            ef.for
+                        |> Just
+                    )
+                    |> Maybe.withDefault ef.for
+            in
+            Array.set row ( Editting { ef | for = forArray } ) fs
+        _ -> fs
+
+
+updateInitFor : Int -> Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateInitFor row rowFor idx text rf =
+    { rf | init = updateFor row rowFor idx text rf.init }
+
+
+updateRecursionFor : Int -> Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateRecursionFor row rowFor idx text rf =
+    { rf | recursion = updateFor row rowFor idx text rf.recursion }
+
+
 fix : Formula -> Formula
 fix frm =
     case frm of
@@ -159,3 +224,21 @@ stringOfFormula f =
                     ( ef.arg1, ef.arg2, ef.body )
     in
     "dp[" ++ s1 ++ "][" ++ s2 ++ "] = " ++  st
+
+
+stringOfFor : Formula -> String
+stringOfFor f =
+    let
+        forTpls =
+            case f of
+                Fixed ff ->
+                    Array.toList ff.for
+                    |> List.map (\for -> ( for.var, Expr.stringOf for.begin, Expr.stringOf for.end ))
+                Editting ef ->
+                    Array.toList ef.for
+    in
+    forTpls
+    |> List.map (\(var, begin, end) ->
+                "for (" ++ var ++ " = " ++ begin ++ "; " ++ var ++ " < " ++ end ++ "; " ++ var ++ "++)"
+        )
+    |> List.foldr (\text acc -> text ++ " " ++ acc) ""

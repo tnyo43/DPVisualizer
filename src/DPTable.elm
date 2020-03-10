@@ -51,7 +51,10 @@ makeForCombinations dict fors =
                 let
                     comb =
                         List.range begin (end-1)
-                        |> List.map ( \n -> makeForCombinations ( Dict.insert for.var n dict ) rest |> (Maybe.andThen (List.map ( (::) (for.var, n) ) >> Just) ))
+                        |> List.map ( \n ->
+                                makeForCombinations ( Dict.insert for.var n dict ) rest
+                                |> (Maybe.andThen (List.map ( (::) (for.var, n) ) >> Just) )
+                            )
                 in
                 List.foldr
                     (\cmb acc ->
