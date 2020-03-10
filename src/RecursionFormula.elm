@@ -186,33 +186,27 @@ fix frm =
         Fixed _ -> frm
 
 
+fixFormulasOfIdx : Bool -> Int -> Array Formula -> Array Formula
+fixFormulasOfIdx isInit row fs =
+    Array.get row fs |> Maybe.andThen (\f ->
+        case fix f of
+            Fixed ff ->
+                if Expr.isIncludingDP ff.body |> xor isInit
+                then Array.set row (Fixed ff) fs |> Just
+                else Nothing
+            _ -> Nothing
+    )
+    |> Maybe.withDefault fs
+
+
 fixInit : Int -> RecursionForumulas -> RecursionForumulas
 fixInit row rf =
-    let
-        ini =
-            Array.get row rf.init |> Maybe.andThen (\f ->
-                Array.set row ( fix f ) rf.init |> Just
-            )
-            |> Maybe.withDefault rf.init
-    in
-    { rf | init = ini }
+    { rf | init = fixFormulasOfIdx True row rf.init }
 
 
 fixRecursion : Int -> RecursionForumulas -> RecursionForumulas
 fixRecursion row rf =
-    let
-        recursion =
-            Array.get row rf.recursion |> Maybe.andThen (\f ->
-                case fix f of
-                    Fixed ff ->
-                        if Expr.isIncludingDP ff.body
-                        then Array.set row (Fixed ff) rf.recursion |> Just
-                        else Nothing
-                    _ -> Nothing
-            )
-            |> Maybe.withDefault rf.recursion
-    in
-    { rf | recursion = recursion }
+    { rf | recursion = fixFormulasOfIdx False row rf.recursion }
 
 
 fixedFormulasOf : RecursionForumulas -> Array FFixed

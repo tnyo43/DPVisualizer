@@ -14,6 +14,65 @@ testFixExpr str f expected =
         \_ -> Expect.equal expected ( fix f )
 
 
+testFixRecursionFormula : String -> Bool -> Int -> RecursionForumulas -> Test
+testFixRecursionFormula str isInit row expected =
+    test str <|
+        \_ ->
+            let
+                fix = 
+                    if isInit then fixInit else fixRecursion
+            in
+            Expect.equal expected ( fix row testRF )
+
+testRF : RecursionForumulas
+testRF =
+    let
+        init =
+            [ FEditting "0" "0" "1" Array.empty |> Editting -- fixできる
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできない
+            ]
+            |> Array.fromList
+        recursion =
+            [ FEditting "0" "0" "1" Array.empty |> Editting -- fixできない
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできる
+            ]
+            |> Array.fromList
+    in
+    RecursionForumulas init recursion
+
+resultRF_init_0 : RecursionForumulas
+resultRF_init_0 =
+    let
+        init =
+            [ FFixed (Con 0) (Con 0) (Con 1) Array.empty |> Fixed
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            ]
+            |> Array.fromList
+        recursion =
+            [ FEditting "0" "0" "1" Array.empty |> Editting
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            ]
+            |> Array.fromList
+    in
+    RecursionForumulas init recursion
+
+resultRF_recursion_1 : RecursionForumulas
+resultRF_recursion_1 =
+    let
+        init =
+            [ FEditting "0" "0" "1" Array.empty |> Editting
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            ]
+            |> Array.fromList
+        recursion =
+            [ FEditting "0" "0" "1" Array.empty |> Editting
+            , FFixed (Con 0) (Con 0) (Dp (Con 0) (Con 0)) Array.empty |> Fixed
+            ]
+            |> Array.fromList
+    in
+    RecursionForumulas init recursion
+
+
 suite : Test
 suite =
     describe "The Recursion Formula"
@@ -34,5 +93,19 @@ suite =
                 "argsかtermでparseに失敗すると（i+）そのまま"
                 ( FEditting "0" "i+" "i+j" Array.empty |> Editting )
                 ( FEditting "0" "i+" "i+j" Array.empty |> Editting )
+            ]
+        , describe "initとrecursionのfix"
+            [ testFixRecursionFormula
+                "dpを含まないinitはfixできる"
+                True 0 resultRF_init_0
+            , testFixRecursionFormula
+                "dpを含むinitはfixできない"
+                True 1 testRF
+            , testFixRecursionFormula
+                "dpを含まないrecursionはfixできない"
+                False 0 testRF
+            , testFixRecursionFormula
+                "dpを含むrecursionはfixできる"
+                False 1 resultRF_recursion_1
             ]
         ]
