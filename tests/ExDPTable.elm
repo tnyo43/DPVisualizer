@@ -18,7 +18,7 @@ initTable_5_5 _ =
 testMakeForCombinations : String -> List For -> List ( List (String, Int) ) -> Test
 testMakeForCombinations str fors expected =
     test str <|
-        \_ -> Expect.equal ( Just expected ) ( makeForCombinations Dict.empty fors )
+        \_ -> Expect.equal ( Just expected ) ( makeForCombinations Array.empty Dict.empty fors )
 
 
 testApplyDPInit : String -> FFixed -> Table -> Test

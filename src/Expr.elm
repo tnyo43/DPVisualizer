@@ -128,12 +128,20 @@ isIncludingDP trm =
         _ -> False
 
 
-eval : Dict String Int -> Term -> Maybe Int
-eval dict trm =
+getFromTable : Array (Array Int) -> Int -> Int -> Maybe Int
+getFromTable tbl h w =
+    Array.get h tbl |> Maybe.andThen (\row ->
+    Array.get w row |> Maybe.andThen (\val ->
+        Just val
+    ))
+
+
+eval : Array (Array Int) -> Dict String Int -> Term -> Maybe Int
+eval dp dict trm =
     case trm of
         App op t1 t2 ->
-            eval dict t1 |> Maybe.andThen (\v1 ->
-            eval dict t2 |> Maybe.andThen (\v2 ->
+            eval dp dict t1 |> Maybe.andThen (\v1 ->
+            eval dp dict t2 |> Maybe.andThen (\v2 ->
                 ( case op of
                     Add -> v1 + v2
                     Sub -> v1 - v2
@@ -146,7 +154,11 @@ eval dict trm =
             Just n
         Var v ->
             Dict.get v dict
-        _ -> Just 0 -- TODO : implement eval dp table
+        Dp th tw ->
+            eval dp dict th |> Maybe.andThen (\h ->
+            eval dp dict tw |> Maybe.andThen (\w ->
+                getFromTable dp h w
+            ))
 
 
 stringOf : Term -> String

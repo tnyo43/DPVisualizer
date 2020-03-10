@@ -44,12 +44,6 @@ testParseForArrayFail fors =
         \_ -> Expect.err ( parseForArray fors )
 
 
-testEval : String -> Term -> Dict String Int -> Maybe Int -> Test
-testEval str trm dict expected =
-    test str <|
-        \_ -> Expect.equal ( eval dict trm ) expected
-
-
 testDict : Dict String Int
 testDict =
     [ ( "a", 1 )
@@ -60,6 +54,23 @@ testDict =
     , ( "f", 6 )
     ]
     |> Dict.fromList
+
+
+testDPTable : Array (Array Int)
+testDPTable =
+    Array.fromList
+        [ Array.fromList [1, 2, 3, 4, 5]
+        , Array.fromList [2, 3, 4, 5, 6]
+        , Array.fromList [3, 4, 5, 6, 7]
+        , Array.fromList [4, 5, 6, 7, 8]
+        , Array.fromList [5, 6, 7, 8, 9]
+        ]
+
+
+testEval : String -> Term -> Maybe Int -> Test
+testEval str trm expected =
+    test str <|
+        \_ -> Expect.equal ( eval testDPTable testDict trm ) expected
 
 
 suite : Test
@@ -111,16 +122,18 @@ suite = describe "Test Expr"
         ]
     , describe "eval"
         [ describe "evalが成功する"
-            [ testEval "10" ( Con 10 ) testDict ( Just 10 )
-            , testEval "a => 1" ( Var "a" ) testDict ( Just 1 )
-            , testEval "b + 1 => 2 + 1 => 3" ( App Add (Var "b") (Con 1) ) testDict ( Just 3 )
-            , testEval "c + d * 2 - e => 3 + 4 * 2 - 5 => " ( App Sub ( App Add ( Var "c" ) ( App Mul ( Var "d" ) ( Con 2 ) )) ( Var "e" ) ) testDict ( Just 6 )
-            , testEval "f % 4 => 2" ( App Mod ( Var "f" ) ( Con 4 ) ) testDict ( Just 2 )
-            , testEval "dpテーブルは未実装で0になる" ( Dp (Con 0) (Con 0) ) testDict ( Just 0 )
+            [ testEval "10" ( Con 10 ) ( Just 10 )
+            , testEval "a => 1" ( Var "a" ) ( Just 1 )
+            , testEval "b + 1 => 2 + 1 => 3" ( App Add (Var "b") (Con 1) ) ( Just 3 )
+            , testEval "c + d * 2 - e => 3 + 4 * 2 - 5 => " ( App Sub ( App Add ( Var "c" ) ( App Mul ( Var "d" ) ( Con 2 ) )) ( Var "e" ) ) ( Just 6 )
+            , testEval "f % 4 => 2" ( App Mod ( Var "f" ) ( Con 4 ) ) ( Just 2 )
+            , testEval "dp[0][0] = 1" ( Dp (Con 0) (Con 0) ) ( Just 1 )
+            , testEval "dp[5][0]は配列外なのでNothing" ( Dp (Con 5) (Con 0) ) Nothing
+            , testEval "dp[2][3] + dp[4][4] = " ( App Sub (Dp (Con 2) (Con 3)) (Dp (Con 4) (Con 4)) ) ( Just (-3) )
             ]
         , describe "evalが失敗する"
-            [ testEval "xは存在しない" ( Var "x" ) testDict Nothing
-            , testEval "a + y + b, yは存在しない" ( App Add (Var "a") ( App Add (Var "y") (Var "b")) ) testDict Nothing
+            [ testEval "xは存在しない" ( Var "x" ) Nothing
+            , testEval "a + y + b, yは存在しない" ( App Add (Var "a") ( App Add (Var "y") (Var "b")) ) Nothing
             ]
         ]
     ]
