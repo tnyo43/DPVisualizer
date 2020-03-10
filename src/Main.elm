@@ -30,7 +30,7 @@ main =
 
 type alias Model =
     { table : DP.Table
-    , formulas : RF.RecursionForumulas
+    , formulas : RF.RecursionFormulas
     }
 
 

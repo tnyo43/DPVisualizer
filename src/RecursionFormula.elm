@@ -22,7 +22,7 @@ type Formula
     = Editting FEditting
     | Fixed FFixed
 
-type alias RecursionForumulas =
+type alias RecursionFormulas =
     { init : Array Formula
     , recursion : Array Formula
     }
@@ -33,9 +33,9 @@ initFEditting _ =
  FEditting "0" "0" "1" Array.empty |> Editting
 
 
-init : () -> RecursionForumulas
+init : () -> RecursionFormulas
 init _ =
-    RecursionForumulas ( Array.empty ) ( Array.empty )
+    RecursionFormulas ( Array.empty ) ( Array.empty )
 
 
 isEditting : Formula -> Bool
@@ -52,12 +52,12 @@ add fs =
     else Array.push ( initFEditting () ) fs
 
 
-addInit : RecursionForumulas -> RecursionForumulas
+addInit : RecursionFormulas -> RecursionFormulas
 addInit rf =
     { rf | init = add rf.init }
 
 
-addRecursion : RecursionForumulas -> RecursionForumulas
+addRecursion : RecursionFormulas -> RecursionFormulas
 addRecursion rf =
     { rf | recursion = add rf.recursion }
 
@@ -67,12 +67,12 @@ remove n fs =
     Array.append ( Array.slice 0 n fs ) ( Array.slice (n+1) (Array.length fs) fs )
 
 
-removeInit : Int -> RecursionForumulas -> RecursionForumulas
+removeInit : Int -> RecursionFormulas -> RecursionFormulas
 removeInit n rf =
     { rf | init = remove n rf.init }
 
 
-removeRecursion : Int -> RecursionForumulas -> RecursionForumulas
+removeRecursion : Int -> RecursionFormulas -> RecursionFormulas
 removeRecursion n rf =
     { rf | recursion = remove n rf.recursion }
 
@@ -92,17 +92,17 @@ update row idx text fs =
         _ -> fs
 
 
-updateInit : Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateInit : Int -> Int -> String -> RecursionFormulas -> RecursionFormulas
 updateInit row idx text rf =
     { rf | init = update row idx text rf.init }
 
 
-updateRecursion : Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateRecursion : Int -> Int -> String -> RecursionFormulas -> RecursionFormulas
 updateRecursion row idx text rf =
     { rf | recursion = update row idx text rf.recursion }
 
 
-addInitFor : Int -> RecursionForumulas -> RecursionForumulas
+addInitFor : Int -> RecursionFormulas -> RecursionFormulas
 addInitFor row rf =
     case Array.get row rf.init of
         Just ( Editting ef ) ->
@@ -110,7 +110,7 @@ addInitFor row rf =
         _ -> rf
 
 
-addRecursionFor : Int -> RecursionForumulas -> RecursionForumulas
+addRecursionFor : Int -> RecursionFormulas -> RecursionFormulas
 addRecursionFor row rf =
     case Array.get row rf.recursion of
         Just ( Editting ef ) ->
@@ -118,7 +118,7 @@ addRecursionFor row rf =
         _ -> rf
 
 
-resetInitFor : Int -> RecursionForumulas -> RecursionForumulas
+resetInitFor : Int -> RecursionFormulas -> RecursionFormulas
 resetInitFor row rf =
     case Array.get row rf.init of
         Just ( Editting ef ) ->
@@ -126,7 +126,7 @@ resetInitFor row rf =
         _ -> rf
 
 
-resetRecursionFor : Int -> RecursionForumulas -> RecursionForumulas
+resetRecursionFor : Int -> RecursionFormulas -> RecursionFormulas
 resetRecursionFor row rf =
     case Array.get row rf.recursion of
         Just ( Editting ef ) ->
@@ -157,12 +157,12 @@ updateFor row rowFor idx text fs =
         _ -> fs
 
 
-updateInitFor : Int -> Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateInitFor : Int -> Int -> Int -> String -> RecursionFormulas -> RecursionFormulas
 updateInitFor row rowFor idx text rf =
     { rf | init = updateFor row rowFor idx text rf.init }
 
 
-updateRecursionFor : Int -> Int -> Int -> String -> RecursionForumulas -> RecursionForumulas
+updateRecursionFor : Int -> Int -> Int -> String -> RecursionFormulas -> RecursionFormulas
 updateRecursionFor row rowFor idx text rf =
     { rf | recursion = updateFor row rowFor idx text rf.recursion }
 
@@ -199,17 +199,17 @@ fixFormulasOfIdx isInit row fs =
     |> Maybe.withDefault fs
 
 
-fixInit : Int -> RecursionForumulas -> RecursionForumulas
+fixInit : Int -> RecursionFormulas -> RecursionFormulas
 fixInit row rf =
     { rf | init = fixFormulasOfIdx True row rf.init }
 
 
-fixRecursion : Int -> RecursionForumulas -> RecursionForumulas
+fixRecursion : Int -> RecursionFormulas -> RecursionFormulas
 fixRecursion row rf =
     { rf | recursion = fixFormulasOfIdx False row rf.recursion }
 
 
-fixedFormulasOf : RecursionForumulas -> Array FFixed
+fixedFormulasOf : RecursionFormulas -> Array FFixed
 fixedFormulasOf rf =
     Array.append rf.init rf.recursion
     |> Array.foldl

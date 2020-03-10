@@ -14,7 +14,7 @@ testFixExpr str f expected =
         \_ -> Expect.equal expected ( fix f )
 
 
-testFixRecursionFormula : String -> Bool -> Int -> RecursionForumulas -> Test
+testFixRecursionFormula : String -> Bool -> Int -> RecursionFormulas -> Test
 testFixRecursionFormula str isInit row expected =
     test str <|
         \_ ->
@@ -24,7 +24,7 @@ testFixRecursionFormula str isInit row expected =
             in
             Expect.equal expected ( fix row testRF )
 
-testRF : RecursionForumulas
+testRF : RecursionFormulas
 testRF =
     let
         init =
@@ -38,9 +38,9 @@ testRF =
             ]
             |> Array.fromList
     in
-    RecursionForumulas init recursion
+    RecursionFormulas init recursion
 
-resultRF_init_0 : RecursionForumulas
+resultRF_init_0 : RecursionFormulas
 resultRF_init_0 =
     let
         init =
@@ -54,9 +54,9 @@ resultRF_init_0 =
             ]
             |> Array.fromList
     in
-    RecursionForumulas init recursion
+    RecursionFormulas init recursion
 
-resultRF_recursion_1 : RecursionForumulas
+resultRF_recursion_1 : RecursionFormulas
 resultRF_recursion_1 =
     let
         init =
@@ -70,7 +70,7 @@ resultRF_recursion_1 =
             ]
             |> Array.fromList
     in
-    RecursionForumulas init recursion
+    RecursionFormulas init recursion
 
 
 suite : Test
