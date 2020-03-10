@@ -185,22 +185,34 @@ fix frm =
                 _ -> frm
         Fixed _ -> frm
 
-fixFormulas : Int -> Array Formula -> Array Formula
-fixFormulas row fs =
-    case Array.get row fs of
-        Just f ->
-            Array.set row ( fix f ) fs
-        _ -> fs
-    
 
 fixInit : Int -> RecursionForumulas -> RecursionForumulas
 fixInit row rf =
-    { rf | init = fixFormulas row rf.init }
+    let
+        ini =
+            Array.get row rf.init |> Maybe.andThen (\f ->
+                Array.set row ( fix f ) rf.init |> Just
+            )
+            |> Maybe.withDefault rf.init
+    in
+    { rf | init = ini }
 
 
 fixRecursion : Int -> RecursionForumulas -> RecursionForumulas
 fixRecursion row rf =
-    { rf | recursion = fixFormulas row rf.recursion }
+    let
+        recursion =
+            Array.get row rf.recursion |> Maybe.andThen (\f ->
+                case fix f of
+                    Fixed ff ->
+                        if Expr.isIncludingDP ff.body
+                        then Array.set row (Fixed ff) rf.recursion |> Just
+                        else Nothing
+                    _ -> Nothing
+            )
+            |> Maybe.withDefault rf.recursion
+    in
+    { rf | recursion = recursion }
 
 
 fixedFormulasOf : RecursionForumulas -> Array FFixed

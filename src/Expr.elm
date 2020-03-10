@@ -1,4 +1,4 @@
-module Expr exposing (Term(..), Op(..), For, parse, parseFor, parseForArray, eval, stringOf)
+module Expr exposing (Term(..), Op(..), For, parse, parseFor, parseForArray, isIncludingDP, eval, stringOf)
 
 import Array exposing (Array)
 import Dict exposing (Dict)
@@ -116,6 +116,16 @@ parseForArray fors =
         )
         (Ok Array.empty)
         fors
+
+
+isIncludingDP : Term -> Bool
+isIncludingDP trm =
+    case trm of
+        Dp _ _ ->
+            True
+        App op t1 t2 ->
+            isIncludingDP t1 || isIncludingDP t2
+        _ -> False
 
 
 eval : Dict String Int -> Term -> Maybe Int
