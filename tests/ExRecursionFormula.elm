@@ -33,8 +33,9 @@ testRF =
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" Array.empty |> Editting -- fixできない
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできる
+            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting -- fixできない
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできない
+            , FEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")]) |> Editting -- fixできる
             ]
             |> Array.fromList
     in
@@ -49,15 +50,16 @@ resultRF_init_0 =
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" Array.empty |> Editting
+            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting
             , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            , FEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")]) |> Editting
             ]
             |> Array.fromList
     in
     RecursionFormulas init recursion
 
-resultRF_recursion_1 : RecursionFormulas
-resultRF_recursion_1 =
+resultRF_recursion_2 : RecursionFormulas
+resultRF_recursion_2 =
     let
         init =
             [ FEditting "0" "0" "1" Array.empty |> Editting
@@ -65,8 +67,12 @@ resultRF_recursion_1 =
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" Array.empty |> Editting
-            , FFixed (Con 0) (Con 0) (Dp (Con 0) (Con 0)) Array.empty |> Fixed
+            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting
+            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            , FFixed
+                (Var "h") (Con 0)
+                (App Mul (Dp (App Sub (Var "h") (Con 1)) (Con 0)) (Con 2))
+                (Array.fromList [ For "h" (Con 1) (Var "H")]) |> Fixed
             ]
             |> Array.fromList
     in
@@ -105,7 +111,10 @@ suite =
                 "dpを含まないrecursionはfixできない"
                 False 0 testRF
             , testFixRecursionFormula
-                "dpを含むrecursionはfixできる"
-                False 1 resultRF_recursion_1
+                "forを含まないrecursionはfixできない"
+                False 1 testRF
+            , testFixRecursionFormula
+                "forとdp項を含むrecursionはfixできる"
+                False 2 resultRF_recursion_2
             ]
         ]

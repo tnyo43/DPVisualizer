@@ -191,9 +191,13 @@ fixFormulasOfIdx isInit row fs =
     Array.get row fs |> Maybe.andThen (\f ->
         case fix f of
             Fixed ff ->
-                if Expr.isIncludingDP ff.body |> xor isInit
-                then Array.set row (Fixed ff) fs |> Just
-                else Nothing
+                if isInit
+                then
+                    if Expr.isIncludingDP ff.body |> not
+                    then Array.set row (Fixed ff) fs |> Just else Nothing
+                else
+                    if Expr.isIncludingDP ff.body && not (Array.isEmpty ff.for)
+                    then Array.set row (Fixed ff) fs |> Just else Nothing
             _ -> Nothing
     )
     |> Maybe.withDefault fs
