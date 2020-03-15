@@ -3,23 +3,24 @@ port module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import DPTable as DP
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (..)
 import RecursionFormula as RF
+import Styles exposing (..)
 
 
 -- MAIN
 
 main : Program () Model Msg
-main =
+main = 
     Browser.document
         { init = init
         , update = update
         , view =
             \m ->
                 { title = "tno43 DP visualize"
-                , body = [ view m ]
+                , body = [ view m |> toUnstyled ]
                 }
         , subscriptions = \_ -> Sub.none
         }
@@ -138,17 +139,14 @@ update msg model =
 
 -- VIEW
 
-showRow : Array Int -> Html Msg
-showRow row =
-    Array.toList row
-    |> List.map (\n -> td [] [ String.fromInt n |> text ])
-    |> tr []
-
-
 showTable : Array (Array Int) -> Html Msg
 showTable tbl =
     Array.toList tbl
-    |> List.map showRow
+    |> List.map (
+            Array.toList
+            >> (List.map (\n -> td [] [ String.fromInt n |> text ]))
+            >> (tr [])
+        )
     |> table []
 
 
@@ -232,7 +230,7 @@ showRecursionFormulas isInit fs =
         )
 
 
-view : Model -> Html Msg
+view : Model -> Html.Styled.Html Msg
 view model =
     div
         []
