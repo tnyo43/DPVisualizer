@@ -68,8 +68,8 @@ makeForCombinations dp dict fors =
             ))
 
 
-apply : Table -> FFixed -> Table
-apply tbl frm =
+applyFF : FFixed -> Table -> Table
+applyFF frm tbl =
     makeForCombinations tbl.t ( Dict.fromList [("H", tbl.h), ("W", tbl.w)] ) (Array.toList frm.for)
     |> Maybe.andThen
         ( List.foldl
@@ -78,9 +78,9 @@ apply tbl frm =
                     dict = Dict.fromList idx
                 in
                 acc |> Maybe.andThen (\accTbl ->
-                eval tbl.t dict frm.arg1 |> Maybe.andThen (\arg1 ->
-                eval tbl.t dict frm.arg2 |> Maybe.andThen (\arg2 ->
-                eval tbl.t dict frm.body |> Maybe.andThen (\val ->
+                eval accTbl.t dict frm.arg1 |> Maybe.andThen (\arg1 ->
+                eval accTbl.t dict frm.arg2 |> Maybe.andThen (\arg2 ->
+                eval accTbl.t dict frm.body |> Maybe.andThen (\val ->
                     editTable arg1 arg2 val accTbl |> Just
                 ))))
             )
@@ -89,6 +89,19 @@ apply tbl frm =
     |> Maybe.withDefault tbl
 
 
-applyFormulas : Table -> Array FFixed -> Table
-applyFormulas tbl frms =
-    Array.foldl (\f accTbl -> apply accTbl f) tbl frms
+applyFormulas : Bool -> Array Formula -> Table -> Table
+applyFormulas isInit frms tbl =
+    ( if isInit then Array.foldr else Array.foldl )
+        (\f ->
+            case f of
+                Fixed ff -> applyFF ff
+                _ -> \x -> x
+        )
+        tbl frms
+
+
+apply : RecursionFormulas -> Table -> Table
+apply rf tbl =
+    initTable tbl.h tbl.w
+    |> applyFormulas True rf.init
+    |> applyFormulas False rf.recursion

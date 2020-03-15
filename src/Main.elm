@@ -133,7 +133,7 @@ update msg model =
             let
                 tbl = DP.initTable model.table.h model.table.w
             in
-            ( { model | table = DP.applyFormulas tbl <| RF.fixedFormulasOf model.formulas }, Cmd.none )
+            ( { model | table = DP.apply model.formulas tbl }, Cmd.none )
             
 
 -- VIEW
