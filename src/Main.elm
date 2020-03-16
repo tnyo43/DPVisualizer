@@ -32,12 +32,16 @@ main =
 type alias Model =
     { table : DP.Table
     , formulas : RF.RecursionFormulas
+    , selectedCel : ( Int, Int )
     }
 
 
 init : () -> (Model, Cmd Msg)
 init _ =
-    ( Model ( DP.initTable 5 5 ) ( RF.init () )
+    ( Model
+        ( DP.initTable 5 5 )
+        ( RF.init () )
+        ( -2, -2 ) -- dp table is -1 indexed
     , Cmd.none)
 
 
@@ -61,6 +65,8 @@ type Msg
     | RemoveInit Int
     | RemoveRecursion Int
     | ApplyRecursionFormulas
+    | OverDPCel Int Int
+    | OutDPCel
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -135,29 +141,65 @@ update msg model =
                 tbl = DP.initTable model.table.h model.table.w
             in
             ( { model | table = DP.apply model.formulas tbl }, Cmd.none )
-            
+
+        OverDPCel row col ->
+            ( { model | selectedCel = ( row, col )}, Cmd.none )
+        
+        OutDPCel ->
+            ( { model | selectedCel = ( -2, -2 )}, Cmd.none )
 
 -- VIEW
 
-showTable : DP.Table -> Html Msg
-showTable tbl =
+showTable : DP.Table -> (Int, Int) -> Html Msg
+showTable tbl slct =
     Array.toList tbl.t
-    |> List.indexedMap (\i ->
+    |> List.indexedMap (\row ->
             Array.toList
-            >> (List.map (\n -> td Styles.dpTableCel [ String.fromInt n |> text ]))
-            >> ((::) (td Styles.dpTableIndex [ String.fromInt i |> text ] ))
+            >> (List.indexedMap
+                    (\col n ->
+                        let
+                            style =
+                                if Tuple.first slct == row && Tuple.second slct == col
+                                then Styles.dpTableSelectedCel
+                                else if Tuple.first slct == row || Tuple.second slct == col
+                                then Styles.dpTableRowColSelectedCel
+                                else Styles.dpTableCel
+                        in
+                        td
+                            ( onMouseEnter ( OverDPCel row col ) :: style ) 
+                            [ String.fromInt n |> text ])
+                )
+            >> ((::)
+                    (td
+                        (
+                            let
+                                style =
+                                    if Tuple.first slct == row
+                                    then Styles.dpTableRowColSelectedCel
+                                    else Styles.dpTableIndex
+                            in
+                            onMouseEnter OutDPCel :: style
+                        )
+                        [ String.fromInt row |> text ] ))
             >> (tr [])
         )
     |> ((::)
             ( ( List.range -1 (tbl.w-1)
                 |> (List.map
-                        (\n -> td Styles.dpTableIndex [ text (if n >= 0 then String.fromInt n else "") ])
+                        (\col ->
+                            td
+                                ( if Tuple.second slct == col
+                                  then Styles.dpTableRowColSelectedCel
+                                  else Styles.dpTableIndex
+                                )
+                                [ text (if col >= 0 then String.fromInt col else "") ]
+                        )
                     )
               )
-              |> (tr [])
+              |> (tr [ onMouseEnter OutDPCel ])
             )
         )
-    |> table Styles.dpTable
+    |> table ( onMouseLeave OutDPCel :: Styles.dpTable )
 
 
 showFormula : RF.Formula -> (Int -> String -> Msg) -> Html Msg
@@ -265,7 +307,7 @@ view model =
                 ]
                 []
             ]
-        , showTable model.table
+        , showTable model.table model.selectedCel
         , button
             [ onClick ApplyRecursionFormulas ]
             [ text "apply" ]

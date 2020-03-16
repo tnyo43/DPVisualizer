@@ -12,6 +12,22 @@ dpTableCel =
         ]
     ]
 
+dpTableSelectedCel =
+    [ css
+        [ backgroundColor red
+        ]
+    ]
+    ++
+    dpTableCel
+
+dpTableRowColSelectedCel =
+    [ css
+        [ backgroundColor orange
+        ]
+    ]
+    ++
+    dpTableCel
+
 dpTable =
     [ css
         [ border3 (px 1) solid black
@@ -33,3 +49,6 @@ dpTableIndex =
 
 black = rgb 0 0 0
 lightGray = rgb 192 192 192
+
+red = rgb 255 0 0
+orange = rgb 255 165 0
