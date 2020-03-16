@@ -7,7 +7,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import RecursionFormula as RF
-import Styles exposing (..)
+import Styles
 
 
 -- MAIN
@@ -139,15 +139,25 @@ update msg model =
 
 -- VIEW
 
-showTable : Array (Array Int) -> Html Msg
+showTable : DP.Table -> Html Msg
 showTable tbl =
-    Array.toList tbl
-    |> List.map (
+    Array.toList tbl.t
+    |> List.indexedMap (\i ->
             Array.toList
-            >> (List.map (\n -> td [] [ String.fromInt n |> text ]))
+            >> (List.map (\n -> td Styles.dpTableCel [ String.fromInt n |> text ]))
+            >> ((::) (td Styles.dpTableIndex [ String.fromInt i |> text ] ))
             >> (tr [])
         )
-    |> table []
+    |> ((::)
+            ( ( List.range -1 (tbl.w-1)
+                |> (List.map
+                        (\n -> td Styles.dpTableIndex [ text (if n >= 0 then String.fromInt n else "") ])
+                    )
+              )
+              |> (tr [])
+            )
+        )
+    |> table Styles.dpTable
 
 
 showFormula : RF.Formula -> (Int -> String -> Msg) -> Html Msg
@@ -255,7 +265,7 @@ view model =
                 ]
                 []
             ]
-        , showTable model.table.t
+        , showTable model.table
         , button
             [ onClick ApplyRecursionFormulas ]
             [ text "apply" ]
