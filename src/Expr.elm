@@ -1,15 +1,20 @@
-module Expr exposing (Term(..), Op(..), For, parse, parseFor, parseForArray, isIncludingDP, eval, stringOf)
+module Expr exposing (Term(..), Op(..), UniOp(..), For, parse, parseFor, parseForArray, isIncludingDP, eval, stringOf)
 
 import Array exposing (Array)
+import Basics exposing (identity)
 import Dict exposing (Dict)
 import Parser exposing (..)
+import Pratt exposing (..)
 import Set exposing (empty)
 
 
 type Op = Add | Sub | Mul | Div | Mod
 
+type UniOp = Neg
+
 type Term
     = App Op Term Term
+    | Uap UniOp Term
     | Con Int
     | Var String
     | Dp Term Term
@@ -21,77 +26,58 @@ type alias For =
     }
 
 
+dpExpression : Config Term -> Parser Term
+dpExpression config =
+    succeed Dp
+        |= prefix 0 (symbol "dp[") identity config
+        |= prefix 0 (symbol "][") identity config
+        |. symbol "]"
+
+
+parenthesizedExpression : Config Term -> Parser Term
+parenthesizedExpression config =
+    succeed identity
+        |. symbol "("
+        |= subExpression 0 config
+        |. symbol ")"
+
+
+varExpression : Config Term -> Parser Term
+varExpression _ =
+    map Var
+        ( variable
+            { start = Char.isAlpha
+            , inner = Char.isAlpha
+            , reserved = Set.empty
+            }
+        )
+
+
 parser : Parser Term
 parser =
-    oneOf
-        [ succeed (\term op expr -> App op term expr)
-            |. backtrackable spaces
-            |= backtrackable termParser
-            |. spaces
-            |= oneOf
-                [ map (\_ -> Add) (symbol "+")
-                , map (\_ -> Sub) (symbol "-")
-                ]
-            |. spaces
-            |= lazy (\_ -> parser)
-            |. spaces
-        , termParser
-        ]
-
-termParser : Parser Term
-termParser =
-    oneOf
-        [ succeed (\factor op term -> App op factor term)
-            |. backtrackable spaces
-            |= backtrackable factorParser
-            |. backtrackable spaces
-            |= oneOf
-                [ map (\_ -> Mul) (symbol "*")
-                , map (\_ -> Div) (symbol "/")
-                , map (\_ -> Mod) (symbol "%")
-                ]
-            |. backtrackable spaces
-            |= (lazy (\_ -> termParser))
-            |. spaces
-        , factorParser
-        ]
-
-factorParser : Parser Term
-factorParser =
-    oneOf
-        [ succeed (\x -> x)
-            |. backtrackable spaces
-            |. symbol "("
-            |. spaces
-            |= (lazy (\_ -> parser))
-            |. spaces
-            |. symbol ")"
-            |. spaces
-        , succeed (\e1 e2 -> Dp e1 e2)
-            |. backtrackable spaces
-            |. symbol "dp["
-            |. spaces
-            |= (lazy (\_ -> parser))
-            |. spaces
-            |. symbol "]["
-            |. spaces
-            |= (lazy (\_ -> parser))
-            |. spaces
-            |. symbol "]"
-        , map Con int
-        , map Var
-            ( variable
-                { start = Char.isAlpha
-                , inner = Char.isAlpha
-                , reserved = Set.empty
-                }
-            )
-        ]
+    Pratt.expression
+        { oneOf =
+            [ literal (map Con int)
+            , prefix 3 (symbol "-") (Uap Neg)
+            , dpExpression
+            , varExpression
+            , parenthesizedExpression
+            ]
+        , andThenOneOf =
+            [ infixLeft 1 (symbol "+") (App Add)
+            , infixLeft 1 (symbol "-") (App Sub)
+            , infixLeft 2 (symbol "*") (App Mul)
+            , infixLeft 2 (symbol "/") (App Div)
+            , infixLeft 2 (symbol "%") (App Mod)
+            ]
+        , spaces = Parser.spaces
+        }
 
 
 parse : String ->  Result (List DeadEnd) Term
 parse str =
     run parser str
+
 
 parseFor : (String, String, String) -> Result (List DeadEnd) For
 parseFor (var, begin, end) =
@@ -150,6 +136,9 @@ eval dp dict trm =
                     Mod -> modBy v2 v1
                 ) |> Just
             ))
+        Uap _ t ->
+            eval dp dict t
+            |> Maybe.andThen (\v -> Just (-v))
         Con n ->
             Just n
         Var v ->
@@ -177,6 +166,8 @@ stringOf expr =
                 s2 = stringOf e
             in
             s1 ++ sop ++ s2
+        Uap _ t ->
+            "-" ++ stringOf t
         Con n ->
             String.fromInt n
         Var v ->

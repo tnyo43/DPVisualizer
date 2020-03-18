@@ -92,11 +92,24 @@ suite = describe "Test Expr"
                     ( App Mod (Dp (App Mul (Var "i") (Con 2)) (App Add (Var "j") (Con 1))) (Var "i") )
                     ( App Mul (Con 2) (Dp (Var "i") (App Sub (Var "j") (Con 1))) )
                 )
+            , testParseTerm
+                "a - b - c"
+                ( App Sub
+                    ( App Sub (Var "a") (Var "b") )
+                    ( Var "c" )
+                )
+            , testParseTerm
+                "-1"
+                ( Uap Neg (Con 1) )
+            , testParseTerm
+                "-a"
+                ( Uap Neg (Var "a") )
             ]
         , describe "parseが失敗"
             [ testParseFail "+1"
             , testParseFail "1+"
             , testParseFail "1%"
+            , testParseFail "dp[hoge][fuga"
             ]
         ]
     , describe "for parser"
