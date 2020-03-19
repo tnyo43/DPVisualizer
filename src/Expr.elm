@@ -1,12 +1,22 @@
-module Expr exposing (Term(..), Op(..), UniOp(..), For, parse, parseFor, parseForArray, isIncludingDP, eval, stringOf)
+module Expr exposing (
+            Variable, Value(..),
+            Term(..), Op(..), UniOp(..), For,
+            parse, parseFor, parseForArray, isIncludingDP, eval, stringOf
+        )
 
 import Array exposing (Array)
 import Basics exposing (identity)
 import Dict exposing (Dict)
 import Parser exposing (..)
 import Pratt exposing (..)
-import Set exposing (empty)
+import Set exposing (Set)
 
+type alias Variable = String
+
+type Value
+    = Num Int
+    | Arr1 (Array Int)
+    | Arr2 (Array (Array Int))
 
 type Op = Add | Sub | Mul | Div | Mod
 
@@ -16,22 +26,13 @@ type Term
     = App Op Term Term
     | Uap UniOp Term
     | Con Int
-    | Var String
-    | Dp Term Term
+    | Var Variable (List Term)
 
 type alias For =
-    { var : String
+    { var : Variable
     , begin : Term
     , end : Term
     }
-
-
-dpExpression : Config Term -> Parser Term
-dpExpression config =
-    succeed Dp
-        |= prefix 0 (symbol "dp[") identity config
-        |= prefix 0 (symbol "][") identity config
-        |. symbol "]"
 
 
 parenthesizedExpression : Config Term -> Parser Term
@@ -42,36 +43,63 @@ parenthesizedExpression config =
         |. symbol ")"
 
 
-varExpression : Config Term -> Parser Term
-varExpression _ =
-    map Var
-        ( variable
-            { start = Char.isAlpha
-            , inner = Char.isAlpha
-            , reserved = Set.empty
-            }
-        )
+varExpression : Int -> Config Term -> Parser Term
+varExpression arity config =
+    let
+        parseVar =
+            map identity
+                ( variable
+                    { start = Char.isAlpha
+                    , inner = Char.isAlpha
+                    , reserved = Set.empty
+                    }
+                )
+    in
+    case arity of
+        0 ->
+            succeed (\v -> Var v [])
+                |= parseVar
+        1 ->
+            succeed (\v t -> Var v [t])
+                |= backtrackable parseVar
+                |. backtrackable (symbol "[")
+                |= backtrackable (subExpression 0 config)
+                |. symbol "]"
+        2 ->
+            succeed (\v t1 t2 -> Var v [t1, t2])
+                |= backtrackable parseVar
+                |. backtrackable (symbol "[")
+                |= backtrackable (subExpression 0 config)
+                |. backtrackable (symbol "][")
+                |= backtrackable (subExpression 0 config)
+                |. symbol "]"
+        _ ->
+            problem "too many arguments"
 
 
 parser : Parser Term
 parser =
-    Pratt.expression
-        { oneOf =
-            [ literal (map Con int)
-            , prefix 3 (symbol "-") (Uap Neg)
-            , dpExpression
-            , varExpression
-            , parenthesizedExpression
-            ]
-        , andThenOneOf =
-            [ infixLeft 1 (symbol "+") (App Add)
-            , infixLeft 1 (symbol "-") (App Sub)
-            , infixLeft 2 (symbol "*") (App Mul)
-            , infixLeft 2 (symbol "/") (App Div)
-            , infixLeft 2 (symbol "%") (App Mod)
-            ]
-        , spaces = Parser.spaces
-        }
+    succeed identity
+        |= ( Pratt.expression
+                { oneOf =
+                    [ literal (map Con int)
+                    , prefix 3 (symbol "-") (Uap Neg)
+                    , varExpression 2
+                    , varExpression 1
+                    , varExpression 0
+                    , parenthesizedExpression
+                    ]
+                , andThenOneOf =
+                    [ infixLeft 1 (symbol "+") (App Add)
+                    , infixLeft 1 (symbol "-") (App Sub)
+                    , infixLeft 2 (symbol "*") (App Mul)
+                    , infixLeft 2 (symbol "/") (App Div)
+                    , infixLeft 2 (symbol "%") (App Mod)
+                    ]
+                , spaces = Parser.spaces
+                }
+            )
+        |. end
 
 
 parse : String ->  Result (List DeadEnd) Term
@@ -104,14 +132,24 @@ parseForArray fors =
         fors
 
 
+getVariables : Term -> Set Variable
+getVariables trm =
+    case trm of
+        App _ t1 t2 ->
+            Set.union (getVariables t1) (getVariables t2)
+        Uap _ t ->
+            getVariables t
+        Con _ ->
+            Set.empty
+        Var v args ->
+            List.map getVariables args
+            |> List.foldl Set.union (Set.singleton v)
+
+
 isIncludingDP : Term -> Bool
 isIncludingDP trm =
-    case trm of
-        Dp _ _ ->
-            True
-        App op t1 t2 ->
-            isIncludingDP t1 || isIncludingDP t2
-        _ -> False
+    getVariables trm
+    |> Set.member "dp"
 
 
 getFromTable : Array (Array Int) -> Int -> Int -> Maybe Int
@@ -122,12 +160,12 @@ getFromTable tbl h w =
     ))
 
 
-eval : Array (Array Int) -> Dict String Int -> Term -> Maybe Int
-eval dp dict trm =
+eval : Dict Variable Value -> Term -> Maybe Int
+eval dict trm =
     case trm of
         App op t1 t2 ->
-            eval dp dict t1 |> Maybe.andThen (\v1 ->
-            eval dp dict t2 |> Maybe.andThen (\v2 ->
+            eval dict t1 |> Maybe.andThen (\v1 ->
+            eval dict t2 |> Maybe.andThen (\v2 ->
                 ( case op of
                     Add -> v1 + v2
                     Sub -> v1 - v2
@@ -137,16 +175,26 @@ eval dp dict trm =
                 ) |> Just
             ))
         Uap _ t ->
-            eval dp dict t
+            eval dict t
             |> Maybe.andThen (\v -> Just (-v))
         Con n ->
             Just n
-        Var v ->
-            Dict.get v dict
-        Dp th tw ->
-            eval dp dict th |> Maybe.andThen (\h ->
-            eval dp dict tw |> Maybe.andThen (\w ->
-                getFromTable dp h w
+        Var v args_ ->
+            let
+                maybeList lst =
+                    if List.member Nothing lst then Nothing
+                    else List.filterMap identity lst |> Just
+            in
+            List.map (eval dict) args_ |> maybeList |> Maybe.andThen (\args ->
+            Dict.get v dict |> Maybe.andThen (\value ->
+                case ( value, args ) of
+                    ( Num n, [] ) ->
+                        Just n
+                    ( Arr1 ns, [a1] ) ->
+                        Array.get a1 ns
+                    ( Arr2 nss, [a1, a2] ) ->
+                        Array.get a1 nss |> Maybe.andThen (\ns -> Array.get a2 ns)
+                    _ -> Nothing
             ))
 
 
@@ -170,7 +218,5 @@ stringOf expr =
             "-" ++ stringOf t
         Con n ->
             String.fromInt n
-        Var v ->
-            v
-        Dp e1 e2 ->
-            "dp[" ++ (stringOf e1) ++ "][" ++ (stringOf e2) ++ "]"
+        Var v args ->
+            v ++ (List.map (\a -> "[" ++ stringOf a ++ "]") args |> String.concat)

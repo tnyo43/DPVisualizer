@@ -70,9 +70,9 @@ resultRF_recursion_2 =
             [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting
             , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
             , FFixed
-                (Var "h") (Con 0)
-                (App Mul (Dp (App Sub (Var "h") (Con 1)) (Con 0)) (Con 2))
-                (Array.fromList [ For "h" (Con 1) (Var "H")]) |> Fixed
+                (Var "h" []) (Con 0)
+                (App Mul (Var "dp" [(App Sub (Var "h" []) (Con 1)), (Con 0)]) (Con 2))
+                (Array.fromList [ For "h" (Con 1) (Var "H" [])]) |> Fixed
             ]
             |> Array.fromList
     in
@@ -94,7 +94,7 @@ suite =
             , testFixExpr
                 "dp[i][j] = i + j : success!"
                 ( FEditting "i" "j" "i+j" Array.empty |> Editting )
-                ( FFixed (Var "i") (Var "j") (App Add (Var "i") (Var "j")) Array.empty |> Fixed )
+                ( FFixed (Var "i" []) (Var "j" []) (App Add (Var "i" []) (Var "j" [])) Array.empty |> Fixed )
             , testFixExpr
                 "argsかtermでparseに失敗すると（i+）そのまま"
                 ( FEditting "0" "i+" "i+j" Array.empty |> Editting )

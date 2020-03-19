@@ -44,14 +44,15 @@ testParseForArrayFail fors =
         \_ -> Expect.err ( parseForArray fors )
 
 
-testDict : Dict String Int
+testDict : Dict Variable Value
 testDict =
-    [ ( "a", 1 )
-    , ( "b", 2 )
-    , ( "c", 3 )
-    , ( "d", 4 )
-    , ( "e", 5 )
-    , ( "f", 6 )
+    [ ( "a", Num 1 )
+    , ( "b", Num 2 )
+    , ( "c", Num 3 )
+    , ( "d", Num 4 )
+    , ( "e", Num 5 )
+    , ( "f", Num 6 )
+    , ( "dp", Arr2 testDPTable )
     ]
     |> Dict.fromList
 
@@ -70,7 +71,7 @@ testDPTable =
 testEval : String -> Term -> Maybe Int -> Test
 testEval str trm expected =
     test str <|
-        \_ -> Expect.equal ( eval testDPTable testDict trm ) expected
+        \_ -> Expect.equal ( eval testDict trm ) expected
 
 
 suite : Test
@@ -78,32 +79,32 @@ suite = describe "Test Expr"
     [ describe "expr parser"
         [ describe "parseが成功"
             [ testParseTerm "1" ( Con 1 )
-            , testParseTerm "1 + x" ( App Add (Con 1) (Var "x") )
-            , testParseTerm "1 - x" ( App Sub (Con 1) (Var "x") )
+            , testParseTerm "1 + x" ( App Add (Con 1) (Var "x" []) )
+            , testParseTerm "1 - x" ( App Sub (Con 1) (Var "x" []) )
             , testParseTerm
                 "y % 4 + 2 / x"
-                ( App Add (App Mod (Var "y") (Con 4)) (App Div (Con 2) (Var "x")) )
+                ( App Add (App Mod (Var "y" []) (Con 4)) (App Div (Con 2) (Var "x" [])) )
             , testParseTerm
                 "dp[i][j]"
-                ( Dp (Var "i") (Var "j") )
+                ( Var "dp" [Var "i" [], Var "j" []] )
             , testParseTerm
                 "dp[i*2][j+1] % i + 2 * dp[i][j-1]"
                 ( App Add
-                    ( App Mod (Dp (App Mul (Var "i") (Con 2)) (App Add (Var "j") (Con 1))) (Var "i") )
-                    ( App Mul (Con 2) (Dp (Var "i") (App Sub (Var "j") (Con 1))) )
+                    ( App Mod (Var "dp" [App Mul (Var "i" []) (Con 2), App Add (Var "j" []) (Con 1)]) (Var "i" []) )
+                    ( App Mul (Con 2) (Var "dp" [Var "i" [], App Sub (Var "j" []) (Con 1)]) )
                 )
             , testParseTerm
                 "a - b - c"
                 ( App Sub
-                    ( App Sub (Var "a") (Var "b") )
-                    ( Var "c" )
+                    ( App Sub (Var "a" []) (Var "b" []) )
+                    ( Var "c" [] )
                 )
             , testParseTerm
                 "-1"
                 ( Uap Neg (Con 1) )
             , testParseTerm
                 "-a"
-                ( Uap Neg (Var "a") )
+                ( Uap Neg (Var "a" []) )
             ]
         , describe "parseが失敗"
             [ testParseFail "+1"
@@ -115,7 +116,7 @@ suite = describe "Test Expr"
     , describe "for parser"
         [ describe "parseが成功"
             [ testParseFor ("i", "0", "10") (For "i" (Con 0) (Con 10))
-            , testParseFor ("w", "a", "b + 1") (For "w" (Var "a") (App Add (Var "b") (Con 1)))
+            , testParseFor ("w", "a", "b + 1") (For "w" (Var "a" []) (App Add (Var "b" []) (Con 1)))
             ]
         , describe "parseが失敗"
             [ testParseForFail ("0", "0", "0")
@@ -126,7 +127,7 @@ suite = describe "Test Expr"
             [ describe "全て成功すると成功"
                 [ testParseForArray
                     ( Array.fromList [("i", "0", "10"), ("w", "a", "b + 1")] )
-                    ( Array.fromList [(For "i" (Con 0) (Con 10)), (For "w" (Var "a") (App Add (Var "b") (Con 1)))] )
+                    ( Array.fromList [(For "i" (Con 0) (Con 10)), (For "w" (Var "a" []) (App Add (Var "b" []) (Con 1)))] )
                 ]
             , describe "一つでも失敗すると失敗"
                 [ testParseForArrayFail ( Array.fromList [("i+1", "0", "10"), ("w", "a", "b + 1")] )
@@ -136,17 +137,17 @@ suite = describe "Test Expr"
     , describe "eval"
         [ describe "evalが成功する"
             [ testEval "10" ( Con 10 ) ( Just 10 )
-            , testEval "a => 1" ( Var "a" ) ( Just 1 )
-            , testEval "b + 1 => 2 + 1 => 3" ( App Add (Var "b") (Con 1) ) ( Just 3 )
-            , testEval "c + d * 2 - e => 3 + 4 * 2 - 5 => " ( App Sub ( App Add ( Var "c" ) ( App Mul ( Var "d" ) ( Con 2 ) )) ( Var "e" ) ) ( Just 6 )
-            , testEval "f % 4 => 2" ( App Mod ( Var "f" ) ( Con 4 ) ) ( Just 2 )
-            , testEval "dp[0][0] = 1" ( Dp (Con 0) (Con 0) ) ( Just 1 )
-            , testEval "dp[5][0]は配列外なのでNothing" ( Dp (Con 5) (Con 0) ) Nothing
-            , testEval "dp[2][3] + dp[4][4] = " ( App Sub (Dp (Con 2) (Con 3)) (Dp (Con 4) (Con 4)) ) ( Just (-3) )
+            , testEval "a => 1" ( Var "a" [] ) ( Just 1 )
+            , testEval "b + 1 => 2 + 1 => 3" ( App Add (Var "b" []) (Con 1) ) ( Just 3 )
+            , testEval "c + d * 2 - e => 3 + 4 * 2 - 5 => " ( App Sub ( App Add ( Var "c" [] ) ( App Mul ( Var "d" [] ) ( Con 2 ) )) ( Var "e" [] ) ) ( Just 6 )
+            , testEval "f % 4 => 2" ( App Mod ( Var "f" [] ) ( Con 4 ) ) ( Just 2 )
+            , testEval "dp[0][0] = 1" ( Var "dp" [Con 0, Con 0] ) ( Just 1 )
+            , testEval "dp[5][0]は配列外なのでNothing" ( Var "dp" [Con 5, Con 0] ) Nothing
+            , testEval "dp[2][3] + dp[4][4] = " ( App Sub (Var "dp" [Con 2, Con 3]) (Var "dp" [Con 4, Con 4]) ) ( Just (-3) )
             ]
         , describe "evalが失敗する"
-            [ testEval "xは存在しない" ( Var "x" ) Nothing
-            , testEval "a + y + b, yは存在しない" ( App Add (Var "a") ( App Add (Var "y") (Var "b")) ) Nothing
+            [ testEval "xは存在しない" ( Var "x" [] ) Nothing
+            , testEval "a + y + b, yは存在しない" ( App Add (Var "a" []) ( App Add (Var "y" []) (Var "b" [])) ) Nothing
             ]
         ]
     ]
