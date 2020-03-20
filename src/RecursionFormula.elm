@@ -4,23 +4,20 @@ import Array exposing (Array)
 import Expr as Expr
 
 
-type alias FEditting =
-    { arg1 : String
-    , arg2 : String
-    , body : String
-    , for : Array ( String, String, String )
-    }
-
-type alias FFixed =
-    { arg1 : Expr.Term
-    , arg2 : Expr.Term
-    , body : Expr.Term
-    , for : Array Expr.For
-    }
-
 type Formula
-    = Editting FEditting
-    | Fixed FFixed
+    = Editting
+        { arg1 : String
+        , arg2 : String
+        , body : String
+        , for : Array ( String, String, String )
+        }
+    | Fixed
+        { arg1 : Expr.Term
+        , arg2 : Expr.Term
+        , body : Expr.Term
+        , for : Array Expr.For
+        }
+
 
 type alias RecursionFormulas =
     { init : Array Formula
@@ -28,9 +25,9 @@ type alias RecursionFormulas =
     }
 
 
-initFEditting : () -> Formula
-initFEditting _ =
- FEditting "0" "0" "1" Array.empty |> Editting
+initEditting : () -> Formula
+initEditting _ =
+    makeEditting "0" "0" "1" Array.empty
 
 
 init : () -> RecursionFormulas
@@ -38,10 +35,36 @@ init _ =
     RecursionFormulas ( Array.empty ) ( Array.empty )
 
 
+makeEditting : String -> String -> String -> Array (String, String, String) -> Formula
+makeEditting arg1 arg2 body for =
+    Editting
+        { arg1 = arg1
+        , arg2 = arg2
+        , body = body
+        , for = for
+        }
+
+makeFixed : Expr.Term -> Expr.Term -> Expr.Term -> Array Expr.For -> Formula
+makeFixed arg1 arg2 body for =
+    Fixed
+        { arg1 = arg1
+        , arg2 = arg2
+        , body = body
+        , for = for
+        }
+
+
 isEditting : Formula -> Bool
-isEditting rf =
-    case rf of
+isEditting f =
+    case f of
         Editting _ -> True
+        _ -> False
+
+
+isFixed : Formula -> Bool
+isFixed f =
+    case f of
+        Fixed _ -> True
         _ -> False
 
 
@@ -49,7 +72,7 @@ add : Array Formula -> Array Formula
 add fs =
     if Array.length ( Array.filter isEditting fs ) > 0
     then fs
-    else Array.push ( initFEditting () ) fs
+    else Array.push ( initEditting () ) fs
 
 
 addInit : RecursionFormulas -> RecursionFormulas
@@ -171,18 +194,19 @@ fix : Formula -> Formula
 fix frm =
     case frm of
         Editting ef ->
-            let
-                triedFrm =
-                    Expr.parse ef.arg1 |> Result.andThen (\arg1 ->
-                    Expr.parse ef.arg2 |> Result.andThen (\arg2 ->
-                    Expr.parse ef.body |> Result.andThen (\body ->
-                    Expr.parseForArray ef.for |> Result.andThen (\for ->
-                        FFixed arg1 arg2 body for |> Ok
-                    ))))
-            in
-            case triedFrm of
-                Ok ff -> Fixed ff
-                _ -> frm
+            Expr.parse ef.arg1 |> Result.andThen (\arg1 ->
+            Expr.parse ef.arg2 |> Result.andThen (\arg2 ->
+            Expr.parse ef.body |> Result.andThen (\body ->
+            Expr.parseForArray ef.for |> Result.andThen (\for ->
+                Fixed
+                    { arg1 = arg1
+                    , arg2 = arg2
+                    , body = body
+                    , for = for
+                    }
+                |> Ok
+            ))))
+            |> Result.withDefault frm
         Fixed _ -> frm
 
 
@@ -213,14 +237,10 @@ fixRecursion row rf =
     { rf | recursion = fixFormulasOfIdx False row rf.recursion }
 
 
-fixedFormulasOf : RecursionFormulas -> Array FFixed
+fixedFormulasOf : RecursionFormulas -> Array Formula
 fixedFormulasOf rf =
     Array.append rf.init rf.recursion
-    |> Array.foldl
-        (\f accArray -> case f of
-            Fixed ff -> Array.push ff accArray
-            _ -> accArray
-        ) Array.empty
+    |> Array.filter isFixed
 
 
 stringOfFormula : Formula -> String

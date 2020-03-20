@@ -67,41 +67,39 @@ makeForCombinations dict fors =
                 |> Maybe.andThen (List.concat >> Just)
             ))
 
--- TODO : add dp table into dict
-applyFF : FFixed -> Table -> Table
-applyFF frm tbl =
-    makeForCombinations ( Dict.fromList [("H", Num tbl.h), ("W", Num tbl.w)] ) (Array.toList frm.for)
-    |> Maybe.andThen
-        ( List.foldl
-            (\idx acc ->
-                acc |> Maybe.andThen (\accTbl ->
-                    let
-                        dict =
-                            List.map (\(v, n) -> (v, Num n)) idx
-                            |> (::) ("dp", Arr2 accTbl.t)
-                            |> Dict.fromList
-                    in
-                    eval dict frm.arg1 |> Maybe.andThen (\arg1 ->
-                    eval dict frm.arg2 |> Maybe.andThen (\arg2 ->
-                    eval dict frm.body |> Maybe.andThen (\val ->
-                        editTable arg1 arg2 val accTbl |> Just
-                    )))
+
+applyFF : Formula -> Table -> Table
+applyFF f tbl =
+    case f of
+        Fixed frm ->
+            makeForCombinations ( Dict.fromList [("H", Num tbl.h), ("W", Num tbl.w)] ) (Array.toList frm.for)
+            |> Maybe.andThen
+                ( List.foldl
+                    (\idx acc ->
+                        acc |> Maybe.andThen (\accTbl ->
+                            let
+                                dict =
+                                    List.map (\(v, n) -> (v, Num n)) idx
+                                    |> (::) ("dp", Arr2 accTbl.t)
+                                    |> Dict.fromList
+                            in
+                            eval dict frm.arg1 |> Maybe.andThen (\arg1 ->
+                            eval dict frm.arg2 |> Maybe.andThen (\arg2 ->
+                            eval dict frm.body |> Maybe.andThen (\val ->
+                                editTable arg1 arg2 val accTbl |> Just
+                            )))
+                        )
+                    )
+                    (Just tbl)
                 )
-            )
-            (Just tbl)
-        )
-    |> Maybe.withDefault tbl
+            |> Maybe.withDefault tbl
+        _ -> tbl
 
 
 applyFormulas : Bool -> Array Formula -> Table -> Table
 applyFormulas isInit frms tbl =
     ( if isInit then Array.foldr else Array.foldl )
-        (\f ->
-            case f of
-                Fixed ff -> applyFF ff
-                _ -> \x -> x
-        )
-        tbl frms
+        applyFF tbl frms
 
 
 apply : RecursionFormulas -> Table -> Table

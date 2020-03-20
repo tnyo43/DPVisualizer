@@ -24,18 +24,19 @@ testFixRecursionFormula str isInit row expected =
             in
             Expect.equal expected ( fix row testRF )
 
+
 testRF : RecursionFormulas
 testRF =
     let
         init =
-            [ FEditting "0" "0" "1" Array.empty |> Editting -- fixできる
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできない
+            [ makeEditting "0" "0" "1" Array.empty -- fixできる
+            , makeEditting "0" "0" "dp[0][0]" Array.empty -- fixできない
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting -- fixできない
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting -- fixできない
-            , FEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")]) |> Editting -- fixできる
+            [ makeEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) -- fixできない
+            , makeEditting "0" "0" "dp[0][0]" Array.empty -- fixできない
+            , makeEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")]) -- fixできる
             ]
             |> Array.fromList
     in
@@ -45,14 +46,14 @@ resultRF_init_0 : RecursionFormulas
 resultRF_init_0 =
     let
         init =
-            [ FFixed (Con 0) (Con 0) (Con 1) Array.empty |> Fixed
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            [ makeFixed (Con 0) (Con 0) (Con 1) Array.empty
+            , makeEditting "0" "0" "dp[0][0]" Array.empty
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
-            , FEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")]) |> Editting
+            [ makeEditting "0" "0" "1" (Array.fromList [("h", "1", "H")])
+            , makeEditting "0" "0" "dp[0][0]" Array.empty
+            , makeEditting "h" "0" "dp[h-1][0] * 2" (Array.fromList [("h", "1", "H")])
             ]
             |> Array.fromList
     in
@@ -62,17 +63,17 @@ resultRF_recursion_2 : RecursionFormulas
 resultRF_recursion_2 =
     let
         init =
-            [ FEditting "0" "0" "1" Array.empty |> Editting
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
+            [ makeEditting "0" "0" "1" Array.empty
+            , makeEditting "0" "0" "dp[0][0]" Array.empty
             ]
             |> Array.fromList
         recursion =
-            [ FEditting "0" "0" "1" (Array.fromList [("h", "1", "H")]) |> Editting
-            , FEditting "0" "0" "dp[0][0]" Array.empty |> Editting
-            , FFixed
+            [ makeEditting "0" "0" "1" (Array.fromList [("h", "1", "H")])
+            , makeEditting "0" "0" "dp[0][0]" Array.empty
+            , makeFixed
                 (Var "h" []) (Con 0)
                 (App Mul (Var "dp" [(App Sub (Var "h" []) (Con 1)), (Con 0)]) (Con 2))
-                (Array.fromList [ For "h" (Con 1) (Var "H" [])]) |> Fixed
+                (Array.fromList [ For "h" (Con 1) (Var "H" [])])
             ]
             |> Array.fromList
     in
@@ -85,20 +86,20 @@ suite =
         [ describe "try fix"
             [ testFixExpr
                 "Fixedなら変更しない"
-                ( FFixed (Con 0) (Con 0) (Con 1) Array.empty |> Fixed )
-                ( FFixed (Con 0) (Con 0) (Con 1) Array.empty |> Fixed )
+                ( makeFixed (Con 0) (Con 0) (Con 1) Array.empty )
+                ( makeFixed (Con 0) (Con 0) (Con 1) Array.empty )
             , testFixExpr
                 "dp[0][0] = 1 : success!"
-                ( FEditting "0" "0" "1" Array.empty |> Editting )
-                ( FFixed (Con 0) (Con 0) (Con 1) Array.empty |> Fixed )
+                ( makeEditting "0" "0" "1" Array.empty )
+                ( makeFixed (Con 0) (Con 0) (Con 1) Array.empty )
             , testFixExpr
                 "dp[i][j] = i + j : success!"
-                ( FEditting "i" "j" "i+j" Array.empty |> Editting )
-                ( FFixed (Var "i" []) (Var "j" []) (App Add (Var "i" []) (Var "j" [])) Array.empty |> Fixed )
+                ( makeEditting "i" "j" "i+j" Array.empty )
+                ( makeFixed (Var "i" []) (Var "j" []) (App Add (Var "i" []) (Var "j" [])) Array.empty )
             , testFixExpr
                 "argsかtermでparseに失敗すると（i+）そのまま"
-                ( FEditting "0" "i+" "i+j" Array.empty |> Editting )
-                ( FEditting "0" "i+" "i+j" Array.empty |> Editting )
+                ( makeEditting "0" "i+" "i+j" Array.empty )
+                ( makeEditting "0" "i+" "i+j" Array.empty )
             ]
         , describe "initとrecursionのfix"
             [ testFixRecursionFormula
