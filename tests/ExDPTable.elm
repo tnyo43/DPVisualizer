@@ -12,24 +12,23 @@ import Test exposing (..)
 
 initTable_5_5 : () -> Table
 initTable_5_5 _ =
-    initTable 5 5
+    initTable 5 (Just 5)
 
 
-initTableFromList : List (List Int) -> Table
-initTableFromList lst =
+initTableD2FromList : List (List Int) -> Table
+initTableD2FromList lst =
     let
         h = List.length lst
         w = List.head lst |> Maybe.andThen (List.length >> Just) |> Maybe.withDefault 0
     in
-    Table h w
-        ( List.map (Array.fromList) lst
-          |> Array.fromList
-        )
+    List.map (Array.fromList) lst
+    |> Array.fromList
+    |> makeTableD2 h w 
 
 
 editMultipleCels : Table -> List (Int, Int, Int) -> Table
 editMultipleCels =
-    List.foldl (\(i, j, n) t -> editTable i j n t)
+    List.foldl (\(i, j, n) t -> editTable i (Just j) n t)
 
 
 testMakeForCombinations : String -> List For -> List ( List (Variable, Int) ) -> Test
@@ -76,71 +75,71 @@ suite =
         , describe "DP初期条件で初期化"
             [ testApplyDPInit
                 "dp[0][0] = 1"
-                ( makeFixed (Con 0) (Con 0) (Con 1) Array.empty )
+                ( makeFixed (Con 0) (Con 0 |> Just) (Con 1) Array.empty )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1)] )
             , testApplyDPInit
                 "dp[i][i] = 1 (for i = [0, 5))は対角上が1"
-                ( makeFixed (Var "i" []) (Var "i" []) (Con 1) (Array.fromList [For "i" (Con 0) (Con 5)]) )
+                ( makeFixed (Var "i" []) (Var "i" [] |> Just) (Con 1) (Array.fromList [For "i" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1), (1,1,1), (2,2,1), (3,3,1), (4,4,1)] )
             , testApplyDPInit
                 "dp[i][0] = 1 (for i = [0, 3))はi=0,1,2で適用される"
-                ( makeFixed (Var "i" []) (Con 0) (Con 1) (Array.fromList [For "i" (Con 0) (Con 3)]) )
+                ( makeFixed (Var "i" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "i" (Con 0) (Con 3)]) )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1), (1,0,1), (2,0,1), (0,0,1), (0,0,1)] )
             , testApplyDPInit
                 "dp[i][0] = 1はすべてのiに対して適用される"
-                ( makeFixed (Var "i" []) (Con 0) (Con 1) (Array.fromList [For "i" (Con 0) (Con 5)]) )
+                ( makeFixed (Var "i" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "i" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1), (1,0,1), (2,0,1), (3,0,1), (4,0,1)] )
             , testApplyDPInit
                 "dp[0][w] = 1はすべてのwに対して適用される"
-                ( makeFixed (Con 2) (Var "w" []) (Con 10) (Array.fromList [For "w" (Con 0) (Con 5)]) )
+                ( makeFixed (Con 2) (Var "w" [] |> Just) (Con 10) (Array.fromList [For "w" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) [(2,0,10), (2,1,10), (2,2,10), (2,3,10), (2,4,10)] )
             , testApplyDPInit
                 "dp[i][j] = 1はすべて1"
-                ( makeFixed (Var "i" []) (Var "j" []) (Con 1) (Array.fromList [For "j" (Con 0) (Con 5), For "i" (Con 0) (Con 5)]) )
+                ( makeFixed (Var "i" []) (Var "j" [] |> Just) (Con 1) (Array.fromList [For "j" (Con 0) (Con 5), For "i" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) (List.range 0 25 |> List.map (\x -> (x // 5, modBy 5 x, 1))) )
             , testApplyDPInit
                 "dp[i][0] = i, 引数にに使う変数はtermに使用できる"
-                ( makeFixed (Var "i" []) (Con 0) (Var "i" []) (Array.fromList [For "i" (Con 0) (Con 5)]) )
+                ( makeFixed (Var "i" []) (Con 0 |> Just) (Var "i" []) (Array.fromList [For "i" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,0), (1,0,1), (2,0,2), (3,0,3), (4,0,4)] )
             , testApplyDPInit
                 "dp[i][j] = i+j"
-                ( makeFixed (Var "i" []) (Var "j" []) ( App Add (Var "i" []) (Var "j" []) ) (Array.fromList [For "j" (Con 0) (Con 5), For "i" (Con 0) (Con 5)]) )
+                ( makeFixed (Var "i" []) (Var "j" [] |> Just) ( App Add (Var "i" []) (Var "j" []) ) (Array.fromList [For "j" (Con 0) (Con 5), For "i" (Con 0) (Con 5)]) )
                 ( editMultipleCels (initTable_5_5 ()) (List.range 0 25 |> List.map (\x -> (x // 5, modBy 5 x, x // 5 + modBy 5 x))) )
             ]
         , describe "apply tests"
             [ testApplyRF
                 "init: {dp[h][0] = 1}, recursion : {}"
-                ( makeRF [ makeFixed (Var "h" []) (Con 0) (Con 1) (Array.fromList [For "h" (Con 0) (Con 5)]) ] [] )
+                ( makeRF [ makeFixed (Var "h" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "h" (Con 0) (Con 5)]) ] [] )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1), (1,0,1), (2,0,1), (3,0,1), (4,0,1)] )
             , testApplyRF
                 "initは先頭から優先して適用 init: {dp[h][0] = 1, dp[0][w] = 2}, recursion : {}"
                 ( makeRF
-                    [ makeFixed (Var "h" []) (Con 0) (Con 1) (Array.fromList [For "h" (Con 0) (Con 5)])
-                    , makeFixed (Con 0) (Var "w" []) (Con 2) (Array.fromList [For "w" (Con 0) (Con 5)]) ]
+                    [ makeFixed (Var "h" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "h" (Con 0) (Con 5)])
+                    , makeFixed (Con 0) (Var "w" [] |> Just) (Con 2) (Array.fromList [For "w" (Con 0) (Con 5)]) ]
                     []
                 )
                 ( editMultipleCels (initTable_5_5 ()) [(0,0,1), (1,0,1), (2,0,1), (3,0,1), (4,0,1), (0,1,2), (0,2,2), (0,3,2), (0,4,2)] )
             , testApplyRF
                 "パスカルの三角形初期化"
                 ( makeRF
-                    [ makeFixed (Var "n" []) (Con 0) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
-                    , makeFixed (Var "n" []) (Var "n" []) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
+                    [ makeFixed (Var "n" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
+                    , makeFixed (Var "n" []) (Var "n" [] |> Just) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
                     ]
                     []
                 )
-                ( initTableFromList [[1,0,0,0,0],[1,1,0,0,0],[1,0,1,0,0],[1,0,0,1,0],[1,0,0,0,1]] )
+                ( initTableD2FromList [[1,0,0,0,0],[1,1,0,0,0],[1,0,1,0,0],[1,0,0,1,0],[1,0,0,0,1]] )
             , testApplyRF
                 "パスカルの三角形"
                 ( makeRF
-                    [ makeFixed (Var "n" []) (Con 0) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
-                    , makeFixed (Var "n" []) (Var "n" []) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
+                    [ makeFixed (Var "n" []) (Con 0 |> Just) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
+                    , makeFixed (Var "n" []) (Var "n" [] |> Just) (Con 1) (Array.fromList [For "n" (Con 0) (Con 5)])
                     ]
                     [ makeFixed
-                        (Var "n" []) (Var "k" [])
+                        (Var "n" []) (Var "k" [] |> Just)
                         (App Add (Var "dp" [(App Sub (Var "n" []) (Con 1)), (App Sub (Var "k" []) (Con 1))]) (Var "dp" [(App Sub (Var "n" []) (Con 1)), (Var "k" [])]))
                         (Array.fromList [For "n" (Con 1) (Var "H" []), For "k" (Con 1) (Var "n" [])])
                     ]
                 )
-                ( initTableFromList [[1,0,0,0,0], [1,1,0,0,0], [1,2,1,0,0], [1,3,3,1,0], [1,4,6,4,1]] )
+                ( initTableD2FromList [[1,0,0,0,0], [1,1,0,0,0], [1,2,1,0,0], [1,3,3,1,0], [1,4,6,4,1]] )
             ]
         ]

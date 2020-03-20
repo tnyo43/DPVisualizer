@@ -7,13 +7,13 @@ import Expr as Expr
 type Formula
     = Editting
         { arg1 : String
-        , arg2 : String
+        , arg2 : Maybe String
         , body : String
         , for : Array ( String, String, String )
         }
     | Fixed
         { arg1 : Expr.Term
-        , arg2 : Expr.Term
+        , arg2 : Maybe Expr.Term
         , body : Expr.Term
         , for : Array Expr.For
         }
@@ -27,7 +27,7 @@ type alias RecursionFormulas =
 
 initEditting : () -> Formula
 initEditting _ =
-    makeEditting "0" "0" "1" Array.empty
+    makeEditting "0" (Just "0") "1" Array.empty
 
 
 init : () -> RecursionFormulas
@@ -35,7 +35,7 @@ init _ =
     RecursionFormulas ( Array.empty ) ( Array.empty )
 
 
-makeEditting : String -> String -> String -> Array (String, String, String) -> Formula
+makeEditting : String -> Maybe String -> String -> Array (String, String, String) -> Formula
 makeEditting arg1 arg2 body for =
     Editting
         { arg1 = arg1
@@ -44,7 +44,7 @@ makeEditting arg1 arg2 body for =
         , for = for
         }
 
-makeFixed : Expr.Term -> Expr.Term -> Expr.Term -> Array Expr.For -> Formula
+makeFixed : Expr.Term -> Maybe Expr.Term -> Expr.Term -> Array Expr.For -> Formula
 makeFixed arg1 arg2 body for =
     Fixed
         { arg1 = arg1
@@ -108,7 +108,7 @@ update row idx text fs =
                 ( a1, a2, b ) =
                     case idx of
                         0 -> ( text, ef.arg2, ef.body )
-                        1 -> ( ef.arg1, text, ef.body )
+                        1 -> ( ef.arg1, Just text, ef.body )
                         _ -> ( ef.arg1, ef.arg2, text )
             in
             Array.set row ( Editting { ef | arg1 = a1, arg2 = a2, body = b } ) fs
@@ -195,16 +195,15 @@ fix frm =
     case frm of
         Editting ef ->
             Expr.parse ef.arg1 |> Result.andThen (\arg1 ->
-            Expr.parse ef.arg2 |> Result.andThen (\arg2 ->
+            ( case ef.arg2 of
+                Nothing ->
+                    Ok Nothing
+                Just a2 ->
+                    Expr.parse a2 |> Result.andThen (\arg2 -> Just arg2 |> Ok) )
+            |> Result.andThen (\arg2 ->
             Expr.parse ef.body |> Result.andThen (\body ->
             Expr.parseForArray ef.for |> Result.andThen (\for ->
-                Fixed
-                    { arg1 = arg1
-                    , arg2 = arg2
-                    , body = body
-                    , for = for
-                    }
-                |> Ok
+                makeFixed arg1 arg2 body for |> Ok
             ))))
             |> Result.withDefault frm
         Fixed _ -> frm
@@ -246,14 +245,20 @@ fixedFormulasOf rf =
 stringOfFormula : Formula -> String
 stringOfFormula f =
     let
-        (s1, s2, st) =
+        (s1, s2, sb) =
             case f of
                 Fixed ff ->
-                    ( (Expr.stringOf ff.arg1), (Expr.stringOf ff.arg2), (Expr.stringOf ff.body) )
+                    ( (Expr.stringOf ff.arg1)
+                    , (ff.arg2 |> Maybe.andThen (Expr.stringOf >> Just))
+                    , (Expr.stringOf ff.body)
+                    )
                 Editting ef ->
                     ( ef.arg1, ef.arg2, ef.body )
     in
-    "dp[" ++ s1 ++ "][" ++ s2 ++ "] = " ++  st
+    "dp[" ++ s1 ++ "]"
+    ++ (s2 |> Maybe.andThen (\s -> "[" ++ s ++ "]" |> Just) |> Maybe.withDefault "")
+    ++ " = "
+    ++ sb
 
 
 stringOfFor : Formula -> String

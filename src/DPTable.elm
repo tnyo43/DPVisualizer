@@ -5,41 +5,96 @@ import Dict exposing (Dict)
 import Expr exposing (Variable, Value(..), Term(..), For, eval)
 import RecursionFormula exposing (..)
 
-type alias Table =
-    { h : Int
-    , w : Int
-    , t : Array (Array Int)
-    }
+type Table
+    = D1
+        { n : Int
+        , t : Array Int
+        }
+    | D2
+        { h : Int
+        , w : Int
+        , t : Array (Array Int)
+        }
 
 
-initTable : Int -> Int -> Table
-initTable h w =
-    Table h w <| Array.initialize h (\_ -> Array.initialize w (\_ -> 0))
+initTable : Int -> ( Maybe Int ) -> Table
+initTable n1 n2_ =
+    case n2_ of
+        -- D1
+        Nothing ->
+            makeTableD1 n1 <| Array.initialize n1 (\_ -> 0)
+        -- D2
+        Just n2 ->
+            makeTableD2 n1 n2 <| Array.initialize n1 (\_ -> Array.initialize n2 (\_ -> 0))
 
 
-updateSize : Int -> Int -> Table -> Table
-updateSize h w table =
-    let
-        t =
-            Array.initialize h (\i ->
-                Array.initialize w (\j ->
-                    case Array.get i table.t |> Maybe.andThen (Array.get j) of
-                        Nothing -> 0
-                        Just x -> x
+initSizeOf : Table -> Table
+initSizeOf table =
+    case table of
+        D1 tbl ->
+            initTable tbl.n Nothing
+        D2 tbl ->
+            initTable tbl.h (Just tbl.w)
+
+
+makeTableD1 : Int -> Array Int -> Table
+makeTableD1 n t =
+    D1
+        { n = n
+        , t = t
+        }
+
+
+makeTableD2 : Int -> Int -> Array (Array Int) -> Table
+makeTableD2 h w t =
+    D2
+        { h = h
+        , w = w
+        , t = t
+        }
+
+
+updateSize : Int -> ( Maybe Int ) -> Table -> Table
+updateSize n1 n2_ table =
+    case ( n2_, table ) of
+        ( Just n2, D2 tbl ) ->
+            Array.initialize n1 (\i ->
+                Array.initialize n2 (\j ->
+                    Array.get i tbl.t
+                    |> Maybe.andThen (Array.get j)
+                    |> Maybe.withDefault 0
                 )
             )
-    in
-    { table | h = h, w = w, t = t }
+            |> makeTableD2 n1 n2
+        ( Nothing, D1 tbl ) ->
+            Array.initialize n1 (\i ->
+                Array.get i tbl.t
+                |> Maybe.withDefault 0
+            )
+            |> makeTableD1 n1
+        _ -> table
 
 
-editTable : Int -> Int -> Int -> Table -> Table
-editTable r c n tbl =
-    case Array.get r tbl.t of
-        Just row ->
-            { tbl | t = Array.set r ( Array.set c n row ) tbl.t }
-        Nothing ->
-            tbl
+editTable : Int -> ( Maybe Int ) -> Int -> Table -> Table
+editTable i1 i2_ x table =
+    case ( i2_, table ) of
+        ( Just i2, D2 tbl ) ->
+            Array.get i1 tbl.t
+            |> Maybe.andThen (\row -> { tbl | t = Array.set i1 ( Array.set i2 x row ) tbl.t } |> D2 >> Just)
+            |> Maybe.withDefault table
+        ( Nothing, D1 tbl ) ->
+            { tbl | t = Array.set i1 x tbl.t } |> D1
+        _ ->
+            table
 
+
+valueOf : Table -> Value
+valueOf table =
+    case table of
+        D1 tbl ->
+            Arr1 tbl.t
+        D2 tbl ->
+            Arr2 tbl.t
 
 makeForCombinations : Dict Variable Value -> List For -> Maybe (List (List (Variable, Int)))
 makeForCombinations dict fors =
@@ -68,11 +123,21 @@ makeForCombinations dict fors =
             ))
 
 
+valueListOf : Table -> List ( String, Value )
+valueListOf table =
+    case table of
+        D1 tbl ->
+            [("N", Num tbl.n)]
+        D2 tbl ->
+            [("H", Num tbl.h), ("W", Num tbl.w)]
+        
+
+
 applyFF : Formula -> Table -> Table
 applyFF f tbl =
     case f of
         Fixed frm ->
-            makeForCombinations ( Dict.fromList [("H", Num tbl.h), ("W", Num tbl.w)] ) (Array.toList frm.for)
+            makeForCombinations ( valueListOf >> Dict.fromList <| tbl ) (Array.toList frm.for)
             |> Maybe.andThen
                 ( List.foldl
                     (\idx acc ->
@@ -80,14 +145,19 @@ applyFF f tbl =
                             let
                                 dict =
                                     List.map (\(v, n) -> (v, Num n)) idx
-                                    |> (::) ("dp", Arr2 accTbl.t)
+                                    |> (::) ("dp", valueOf accTbl)
                                     |> Dict.fromList
                             in
                             eval dict frm.arg1 |> Maybe.andThen (\arg1 ->
-                            eval dict frm.arg2 |> Maybe.andThen (\arg2 ->
                             eval dict frm.body |> Maybe.andThen (\val ->
-                                editTable arg1 arg2 val accTbl |> Just
-                            )))
+                                case frm.arg2 of
+                                    Nothing ->
+                                        editTable arg1 Nothing val accTbl |> Just
+                                    Just a2 ->
+                                        eval dict a2 |> Maybe.andThen (\arg2 ->
+                                            editTable arg1 (Just arg2) val accTbl |> Just
+                                        )
+                            ))
                         )
                     )
                     (Just tbl)
@@ -104,6 +174,6 @@ applyFormulas isInit frms tbl =
 
 apply : RecursionFormulas -> Table -> Table
 apply rf tbl =
-    initTable tbl.h tbl.w
+    initSizeOf tbl
     |> applyFormulas True rf.init
     |> applyFormulas False rf.recursion
