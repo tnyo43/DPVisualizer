@@ -80,10 +80,10 @@ editTable i1 i2_ x table =
     case ( i2_, table ) of
         ( Just i2, D2 tbl ) ->
             Array.get i1 tbl.t
-            |> Maybe.andThen (\row -> { tbl | t = Array.set i1 ( Array.set i2 x row ) tbl.t } |> D2 >> Just)
+            |> Maybe.andThen (\row -> D2 { tbl | t = Array.set i1 ( Array.set i2 x row ) tbl.t } |> Just)
             |> Maybe.withDefault table
         ( Nothing, D1 tbl ) ->
-            { tbl | t = Array.set i1 x tbl.t } |> D1
+            D1 { tbl | t = Array.set i1 x tbl.t }
         _ ->
             table
 
@@ -103,22 +103,18 @@ makeForCombinations dict fors =
         for :: rest ->
             eval dict for.begin |> Maybe.andThen (\begin ->
             eval dict for.end |> Maybe.andThen (\end ->
-                let
-                    comb =
-                        List.range begin (end-1)
-                        |> List.map ( \n ->
-                                makeForCombinations ( Dict.insert for.var (Num n) dict ) rest
-                                |> (Maybe.andThen (List.map ( (::) (for.var, n) ) >> Just) )
-                            )
-                in
-                List.foldr
+                List.range begin (end-1)
+                |> List.map ( \n ->
+                        makeForCombinations ( Dict.insert for.var (Num n) dict ) rest
+                        |> Maybe.andThen (List.map ( (::) (for.var, n) ) >> Just)
+                    )
+                |> List.foldr
                     (\cmb acc ->
                         cmb |> Maybe.andThen (\c ->
                         acc |> Maybe.andThen (\a ->
                             c :: a |> Just))
                     )
                     (Just [])
-                    comb
                 |> Maybe.andThen (List.concat >> Just)
             ))
 
