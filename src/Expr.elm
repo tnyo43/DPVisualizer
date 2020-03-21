@@ -102,29 +102,36 @@ parser =
         |. end
 
 
-parse : String ->  Result (List DeadEnd) Term
-parse str =
+parse : Int -> String ->  Result (List DeadEnd) Term
+parse dpDim str =
     run parser str
+    |> Result.andThen (\trm ->
+        case getVariables trm |> Set.member ("dp", 3 - dpDim) of
+            True ->
+                Err []
+            False ->
+                Ok trm
+    )
 
 
-parseFor : (String, String, String) -> Result (List DeadEnd) For
-parseFor (var, begin, end) =
+parseFor : Int -> (String, String, String) -> Result (List DeadEnd) For
+parseFor dpDim (var, begin, end) =
     if String.all Char.isAlpha var
     then
-        run parser begin |> Result.andThen (\b ->
-        run parser end |> Result.andThen (\e ->
+        parse dpDim begin |> Result.andThen (\b ->
+        parse dpDim end |> Result.andThen (\e ->
             For var b e |> Ok
         ))
     else
         Err []
 
 
-parseForArray : Array (String, String, String) -> Result (List DeadEnd) (Array For)
-parseForArray fors =
+parseForArray : Int -> Array (String, String, String) -> Result (List DeadEnd) (Array For)
+parseForArray dpDim fors =
     Array.foldl
         (\for ->
             Result.andThen (\array ->
-                parseFor for
+                parseFor dpDim for
                 |> Result.andThen (\f -> Array.push f array |> Ok)
             )
         )
@@ -132,7 +139,7 @@ parseForArray fors =
         fors
 
 
-getVariables : Term -> Set Variable
+getVariables : Term -> Set (Variable, Int)
 getVariables trm =
     case trm of
         App _ t1 t2 ->
@@ -143,13 +150,15 @@ getVariables trm =
             Set.empty
         Var v args ->
             List.map getVariables args
-            |> List.foldl Set.union (Set.singleton v)
+            |> List.foldl Set.union (Set.singleton (v, List.length args))
 
 
 isIncludingDP : Term -> Bool
 isIncludingDP trm =
-    getVariables trm
-    |> Set.member "dp"
+    let
+        set = getVariables trm
+    in
+    Set.member ("dp", 1) set || Set.member ("dp", 2) set
 
 
 getFromTable : Array (Array Int) -> Int -> Int -> Maybe Int

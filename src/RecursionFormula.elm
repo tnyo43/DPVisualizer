@@ -192,29 +192,29 @@ updateRecursionFor row rowFor idx text rf =
     { rf | recursion = updateFor row rowFor idx text rf.recursion }
 
 
-fix : Formula -> Formula
-fix frm =
+fix : Int -> Formula -> Formula
+fix dpDim frm =
     case frm of
         Editting ef ->
-            Expr.parse ef.arg1 |> Result.andThen (\arg1 ->
+            Expr.parse dpDim ef.arg1 |> Result.andThen (\arg1 ->
             ( case ef.arg2 of
                 Nothing ->
                     Ok Nothing
                 Just a2 ->
-                    Expr.parse a2 |> Result.andThen (\arg2 -> Just arg2 |> Ok) )
-            |> Result.andThen (\arg2 ->
-            Expr.parse ef.body |> Result.andThen (\body ->
-            Expr.parseForArray ef.for |> Result.andThen (\for ->
+                    Expr.parse dpDim a2 |> Result.andThen (\arg2 -> Just arg2 |> Ok)
+            ) |> Result.andThen (\arg2 ->
+            Expr.parse dpDim ef.body |> Result.andThen (\body ->
+            Expr.parseForArray dpDim ef.for |> Result.andThen (\for ->
                 makeFixed arg1 arg2 body for |> Ok
             ))))
             |> Result.withDefault frm
         Fixed _ -> frm
 
 
-fixFormulasOfIdx : Bool -> Int -> Array Formula -> Array Formula
-fixFormulasOfIdx isInit row fs =
+fixFormulasOfIdx : Int -> Bool -> Int -> Array Formula -> Array Formula
+fixFormulasOfIdx dpDim isInit row fs =
     Array.get row fs |> Maybe.andThen (\f ->
-        case fix f of
+        case fix dpDim f of
             Fixed ff ->
                 if isInit
                 then
@@ -228,14 +228,14 @@ fixFormulasOfIdx isInit row fs =
     |> Maybe.withDefault fs
 
 
-fixInit : Int -> RecursionFormulas -> RecursionFormulas
-fixInit row rf =
-    { rf | init = fixFormulasOfIdx True row rf.init }
+fixInit : Int -> Int -> RecursionFormulas -> RecursionFormulas
+fixInit dpDim row rf =
+    { rf | init = fixFormulasOfIdx dpDim True row rf.init }
 
 
-fixRecursion : Int -> RecursionFormulas -> RecursionFormulas
-fixRecursion row rf =
-    { rf | recursion = fixFormulasOfIdx False row rf.recursion }
+fixRecursion : Int -> Int -> RecursionFormulas -> RecursionFormulas
+fixRecursion dpDim row rf =
+    { rf | recursion = fixFormulasOfIdx dpDim False row rf.recursion }
 
 
 fixedFormulasOf : RecursionFormulas -> Array Formula

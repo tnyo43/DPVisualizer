@@ -8,21 +8,21 @@ import RecursionFormula exposing (..)
 import Test exposing (..)
 
 
-testFixExpr : String -> Formula -> Formula -> Test
-testFixExpr str f expected =
+testFixExprD2 : String -> Formula -> Formula -> Test
+testFixExprD2 str f expected =
     test str <|
-        \_ -> Expect.equal expected ( fix f )
+        \_ -> Expect.equal expected ( fix 2 f )
 
 
-testFixRecursionFormula : String -> Bool -> Int -> RecursionFormulas -> Test
-testFixRecursionFormula str isInit row expected =
+testFixRecursionFormulaD2 : String -> Bool -> Int -> RecursionFormulas -> Test
+testFixRecursionFormulaD2 str isInit row expected =
     test str <|
         \_ ->
             let
                 fix = 
                     if isInit then fixInit else fixRecursion
             in
-            Expect.equal expected ( fix row testRF )
+            Expect.equal expected ( fix 2 row testRF )
 
 
 testRF : RecursionFormulas
@@ -84,37 +84,37 @@ suite : Test
 suite =
     describe "The Recursion Formula"
         [ describe "try fix"
-            [ testFixExpr
+            [ testFixExprD2
                 "Fixedなら変更しない"
                 ( makeFixed (Con 0) (Con 0 |> Just) (Con 1) Array.empty )
                 ( makeFixed (Con 0) (Con 0 |> Just) (Con 1) Array.empty )
-            , testFixExpr
+            , testFixExprD2
                 "dp[0][0] = 1 : success!"
                 ( makeEditting "0" (Just "0") "1" Array.empty )
                 ( makeFixed (Con 0) (Con 0 |> Just) (Con 1) Array.empty )
-            , testFixExpr
+            , testFixExprD2
                 "dp[i][j] = i + j : success!"
                 ( makeEditting "i" (Just "j") "i+j" Array.empty )
                 ( makeFixed (Var "i" []) (Var "j" [] |> Just) (App Add (Var "i" []) (Var "j" [])) Array.empty )
-            , testFixExpr
+            , testFixExprD2
                 "argsかtermでparseに失敗すると（i+）そのまま"
                 ( makeEditting "0" (Just "i+") "i+j" Array.empty )
                 ( makeEditting "0" (Just "i+") "i+j" Array.empty )
             ]
         , describe "initとrecursionのfix"
-            [ testFixRecursionFormula
+            [ testFixRecursionFormulaD2
                 "dpを含まないinitはfixできる"
                 True 0 resultRF_init_0
-            , testFixRecursionFormula
+            , testFixRecursionFormulaD2
                 "dpを含むinitはfixできない"
                 True 1 testRF
-            , testFixRecursionFormula
+            , testFixRecursionFormulaD2
                 "dpを含まないrecursionはfixできない"
                 False 0 testRF
-            , testFixRecursionFormula
+            , testFixRecursionFormulaD2
                 "forを含まないrecursionはfixできない"
                 False 1 testRF
-            , testFixRecursionFormula
+            , testFixRecursionFormulaD2
                 "forとdp項を含むrecursionはfixできる"
                 False 2 resultRF_recursion_2
             ]

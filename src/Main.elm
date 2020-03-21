@@ -149,10 +149,10 @@ update msg model =
             ( { model | formulas = RF.updateRecursionFor row rowFor idx text model.formulas }, Cmd.none )
 
         FixInit row ->
-            ( { model | formulas = RF.fixInit row model.formulas }, Cmd.none )
+            ( { model | formulas = RF.fixInit (DP.dimOf model.table) row model.formulas }, Cmd.none )
 
         FixRecursion row ->
-            ( { model | formulas = RF.fixRecursion row model.formulas }, Cmd.none )
+            ( { model | formulas = RF.fixRecursion (DP.dimOf model.table) row model.formulas }, Cmd.none )
 
         RemoveInit row ->
             ( { model | formulas = RF.removeInit row model.formulas }, Cmd.none )

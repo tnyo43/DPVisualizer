@@ -8,40 +8,40 @@ import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 
 
-testParseTerm : String -> Term -> Test
-testParseTerm str term =
+testParseTerm : Int -> String -> Term -> Test
+testParseTerm dpDim str term =
     test str <|
-        \_ -> Expect.equal ( Ok term ) ( parse str )
+        \_ -> Expect.equal ( Ok term ) ( parse dpDim str )
 
 
-testParseFail : String -> Test
-testParseFail str =
+testParseFail : Int -> String -> Test
+testParseFail dpDim str =
     test str <|
-        \_ -> Expect.err ( parse str )
+        \_ -> Expect.err ( parse dpDim str )
 
 
-testParseFor : ( String, String, String ) -> For -> Test
-testParseFor (v, b, e) for =
+testParseFor : Int -> ( String, String, String ) -> For -> Test
+testParseFor dpDim (v, b, e) for =
     test (v ++ ", " ++ b ++ ", " ++ e) <|
-        \_ -> Expect.equal ( Ok for ) ( parseFor (v, b, e) )
+        \_ -> Expect.equal ( Ok for ) ( parseFor dpDim (v, b, e) )
 
 
-testParseForFail : ( String, String, String ) -> Test
-testParseForFail (v, b, e) =
+testParseForFail : Int -> ( String, String, String ) -> Test
+testParseForFail dpDim (v, b, e) =
     test (v ++ ", " ++ b ++ ", " ++ e) <|
-        \_ -> Expect.err ( parseFor (v, b, e) )
+        \_ -> Expect.err ( parseFor dpDim (v, b, e) )
 
 
-testParseForArray : Array ( String, String, String ) -> Array For -> Test
-testParseForArray fors expected =
+testParseForArray : Int -> Array ( String, String, String ) -> Array For -> Test
+testParseForArray dpDim fors expected =
     test (Array.foldl (\(v,b,e) acc -> acc ++ " [" ++ (v ++ ", " ++ b ++ ", " ++ e ++ "]") ) "" fors) <|
-        \_ -> Expect.equal ( Ok expected ) ( parseForArray fors )
+        \_ -> Expect.equal ( Ok expected ) ( parseForArray dpDim fors )
 
 
-testParseForArrayFail : Array ( String, String, String ) -> Test
-testParseForArrayFail fors =
+testParseForArrayFail : Int -> Array ( String, String, String ) -> Test
+testParseForArrayFail dpDim fors =
     test (Array.foldl (\(v,b,e) acc -> acc ++ " [" ++ (v ++ ", " ++ b ++ ", " ++ e ++ "]") ) "" fors) <|
-        \_ -> Expect.err ( parseForArray fors )
+        \_ -> Expect.err ( parseForArray dpDim fors )
 
 
 testDict : Dict Variable Value
@@ -78,59 +78,66 @@ suite : Test
 suite = describe "Test Expr"
     [ describe "expr parser"
         [ describe "parseが成功"
-            [ testParseTerm "1" ( Con 1 )
-            , testParseTerm "1 + x" ( App Add (Con 1) (Var "x" []) )
-            , testParseTerm "1 - x" ( App Sub (Con 1) (Var "x" []) )
-            , testParseTerm
+            [ testParseTerm 2 "1" ( Con 1 )
+            , testParseTerm 2 "1 + x" ( App Add (Con 1) (Var "x" []) )
+            , testParseTerm 2 "1 - x" ( App Sub (Con 1) (Var "x" []) )
+            , testParseTerm 2
                 "y % 4 + 2 / x"
                 ( App Add (App Mod (Var "y" []) (Con 4)) (App Div (Con 2) (Var "x" [])) )
-            , testParseTerm
+            , testParseTerm 2
                 "dp[i][j]"
                 ( Var "dp" [Var "i" [], Var "j" []] )
-            , testParseTerm
+            , testParseTerm 2
                 "dp[i*2][j+1] % i + 2 * dp[i][j-1]"
                 ( App Add
                     ( App Mod (Var "dp" [App Mul (Var "i" []) (Con 2), App Add (Var "j" []) (Con 1)]) (Var "i" []) )
                     ( App Mul (Con 2) (Var "dp" [Var "i" [], App Sub (Var "j" []) (Con 1)]) )
                 )
-            , testParseTerm
+            , testParseTerm 2
                 "a - b - c"
                 ( App Sub
                     ( App Sub (Var "a" []) (Var "b" []) )
                     ( Var "c" [] )
                 )
-            , testParseTerm
+            , testParseTerm 2
                 "-1"
                 ( Uap Neg (Con 1) )
-            , testParseTerm
+            , testParseTerm 2
                 "-a"
                 ( Uap Neg (Var "a" []) )
+            , testParseTerm 1
+                "dp[i]"
+                ( Var "dp" [Var "i" []] )
             ]
         , describe "parseが失敗"
-            [ testParseFail "+1"
-            , testParseFail "1+"
-            , testParseFail "1%"
-            , testParseFail "dp[hoge][fuga"
+            [ testParseFail 2 "+1"
+            , testParseFail 2 "1+"
+            , testParseFail 2 "1%"
+            , testParseFail 2 "dp[hoge][fuga"
+            ]
+        , describe "dpテーブルの次元が異なると失敗"
+            [ testParseFail 2 "dp[0]"
+            , testParseFail 1 "dp[0][i]"
             ]
         ]
     , describe "for parser"
         [ describe "parseが成功"
-            [ testParseFor ("i", "0", "10") (For "i" (Con 0) (Con 10))
-            , testParseFor ("w", "a", "b + 1") (For "w" (Var "a" []) (App Add (Var "b" []) (Con 1)))
+            [ testParseFor 1 ("i", "0", "10") (For "i" (Con 0) (Con 10))
+            , testParseFor 1 ("w", "a", "b + 1") (For "w" (Var "a" []) (App Add (Var "b" []) (Con 1)))
             ]
         , describe "parseが失敗"
-            [ testParseForFail ("0", "0", "0")
-            , testParseForFail ("i+1", "0", "0")
-            , testParseForFail ("dp[0][0]", "0", "0")
+            [ testParseForFail 1 ("0", "0", "0")
+            , testParseForFail 1 ("i+1", "0", "0")
+            , testParseForFail 1 ("dp[0][0]", "0", "0")
             ]
         , describe "for arrayのparse"
             [ describe "全て成功すると成功"
-                [ testParseForArray
+                [ testParseForArray 2
                     ( Array.fromList [("i", "0", "10"), ("w", "a", "b + 1")] )
                     ( Array.fromList [(For "i" (Con 0) (Con 10)), (For "w" (Var "a" []) (App Add (Var "b" []) (Con 1)))] )
                 ]
             , describe "一つでも失敗すると失敗"
-                [ testParseForArrayFail ( Array.fromList [("i+1", "0", "10"), ("w", "a", "b + 1")] )
+                [ testParseForArrayFail 2 ( Array.fromList [("i+1", "0", "10"), ("w", "a", "b + 1")] )
                 ]
             ]
         ]
