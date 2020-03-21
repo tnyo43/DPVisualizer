@@ -25,9 +25,11 @@ type alias RecursionFormulas =
     }
 
 
-initEditting : () -> Formula
-initEditting _ =
-    makeEditting "0" (Just "0") "1" Array.empty
+initEditting : Int -> Formula
+initEditting dim =
+    if dim == 1
+    then makeEditting "0" Nothing "1" Array.empty
+    else makeEditting "0" (Just "0") "1" Array.empty
 
 
 init : () -> RecursionFormulas
@@ -68,21 +70,21 @@ isFixed f =
         _ -> False
 
 
-add : Array Formula -> Array Formula
-add fs =
+add : Int -> Array Formula -> Array Formula
+add dim fs =
     if Array.length ( Array.filter isEditting fs ) > 0
     then fs
-    else Array.push ( initEditting () ) fs
+    else Array.push ( initEditting dim ) fs
 
 
-addInit : RecursionFormulas -> RecursionFormulas
-addInit rf =
-    { rf | init = add rf.init }
+addInit : Int -> RecursionFormulas -> RecursionFormulas
+addInit dim rf =
+    { rf | init = add dim rf.init }
 
 
-addRecursion : RecursionFormulas -> RecursionFormulas
-addRecursion rf =
-    { rf | recursion = add rf.recursion }
+addRecursion : Int -> RecursionFormulas -> RecursionFormulas
+addRecursion dim rf =
+    { rf | recursion = add dim rf.recursion }
 
 
 remove : Int -> Array Formula -> Array Formula

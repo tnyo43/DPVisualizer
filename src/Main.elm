@@ -79,11 +79,11 @@ update msg model =
                 table =
                     case model.table of
                         DP.D1 tbl ->
-                            DP.initTable tbl.n (Just 5)
+                            DP.initTable 5 (Just 5)
                         DP.D2 tbl ->
-                            DP.initTable tbl.h Nothing
+                            DP.initTable 5 Nothing
             in
-            ( { model | table = table }, Cmd.none )
+            ( { model | table = table, formulas = RF.init() }, Cmd.none )
 
         UpdateN n_str ->
             case ( String.toInt n_str, model.table ) of
@@ -119,10 +119,10 @@ update msg model =
                     ( model, Cmd.none )
 
         AddInitFormula ->
-            ( { model | formulas = RF.addInit model.formulas }, Cmd.none )
+            ( { model | formulas = RF.addInit (DP.dimOf model.table) model.formulas }, Cmd.none )
 
         AddRecursionFormula ->
-            ( { model | formulas = RF.addRecursion model.formulas }, Cmd.none )
+            ( { model | formulas = RF.addRecursion (DP.dimOf model.table) model.formulas }, Cmd.none )
 
         UpdateEdittingRFInit row idx text ->
             ( { model | formulas = RF.updateInit row idx text model.formulas }, Cmd.none )
@@ -183,9 +183,46 @@ showTable : DP.Table -> (Int, Int) -> Html Msg
 showTable table slct =
     case table of
         DP.D1 tbl ->
-            text "d1"
+            showTableD1 (tbl.n, tbl.t) (Tuple.first slct)
         DP.D2 tbl ->
             showTableD2 (tbl.h, tbl.w, tbl.t) slct
+
+
+showTableD1 : (Int, Array Int) -> Int -> Html Msg
+showTableD1 (n, tbl) slct =
+    Array.toList tbl
+    |> List.indexedMap (\i x ->
+            let 
+                style =
+                    if slct == i
+                    then Styles.dpTableSelectedCel
+                    else Styles.dpTableCel
+            in
+            td
+                ( onMouseEnter (OverDPCel i -2 ) :: style )
+                [ String.fromInt x |> text ]
+        )
+    |> tr []
+    |> List.singleton
+    |> ((::)
+        ( ( List.range 0 (n-1)
+            |> (List.map
+                    (\i ->
+                        td
+                            ( if slct == i
+                                then Styles.dpTableRowColSelectedCel
+                                else Styles.dpTableIndex
+                            )
+                            [ text (if i >= 0 then String.fromInt i else "") ]
+                    )
+                )
+            )
+            |> (tr [ onMouseEnter OutDPCel ])
+        )
+    )
+    |> table ( onMouseLeave OutDPCel :: Styles.dpTable )
+
+
 
 showTableD2 : (Int, Int, Array (Array Int)) -> (Int, Int) -> Html Msg
 showTableD2 (h, w, tbl) slct =
@@ -204,7 +241,8 @@ showTableD2 (h, w, tbl) slct =
                         in
                         td
                             ( onMouseEnter ( OverDPCel row col ) :: style ) 
-                            [ String.fromInt n |> text ])
+                            [ String.fromInt n |> text ]
+                    )
                 )
             >> ((::)
                     (td
@@ -217,7 +255,9 @@ showTableD2 (h, w, tbl) slct =
                             in
                             onMouseEnter OutDPCel :: style
                         )
-                        [ String.fromInt row |> text ] ))
+                        [ String.fromInt row |> text ]
+                    )
+                )
             >> (tr [])
         )
     |> ((::)
@@ -247,12 +287,16 @@ showFormula f updateMsg =
                 (
                     [ text "dp["
                     , input [ onInput ( updateMsg 0 ) ] [ text ef.arg1 ]
-                    , text "]["
                     ]
                     ++
                     (
                         ef.arg2
-                        |> Maybe.andThen (\a2 -> Just [input [ onInput ( updateMsg 1 ) ] [ text a2 ]])
+                        |> Maybe.andThen (\a2 ->
+                            Just
+                                [ text "]["
+                                , input [ onInput ( updateMsg 1 ) ] [ text a2 ]
+                                ]
+                            )
                         |> Maybe.withDefault []
                     )
                     ++
