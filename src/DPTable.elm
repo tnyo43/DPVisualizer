@@ -54,7 +54,14 @@ makeTableD2 h w t =
         }
 
 
-updateSize : Int -> ( Maybe Int ) -> Table -> Table
+dimOf : Table -> Int
+dimOf table =
+    case table of
+        D1 _ -> 1
+        D2 _ -> 2
+
+
+updateSize : Int -> Maybe Int -> Table -> Table
 updateSize n1 n2_ table =
     case ( n2_, table ) of
         ( Just n2, D2 tbl ) ->
@@ -75,7 +82,7 @@ updateSize n1 n2_ table =
         _ -> table
 
 
-editTable : Int -> ( Maybe Int ) -> Int -> Table -> Table
+editTable : Int -> Maybe Int -> Int -> Table -> Table
 editTable i1 i2_ x table =
     case ( i2_, table ) of
         ( Just i2, D2 tbl ) ->
@@ -95,6 +102,7 @@ valueOf table =
             Arr1 tbl.t
         D2 tbl ->
             Arr2 tbl.t
+
 
 makeForCombinations : Dict Variable Value -> List For -> Maybe (List (List (Variable, Int)))
 makeForCombinations dict fors =
@@ -127,7 +135,6 @@ valueListOf table =
         D2 tbl ->
             [("H", Num tbl.h), ("W", Num tbl.w)]
         
-
 
 applyFF : Formula -> Table -> Table
 applyFF f tbl =

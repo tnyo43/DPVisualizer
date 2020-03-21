@@ -39,7 +39,7 @@ type alias Model =
 init : () -> (Model, Cmd Msg)
 init _ =
     ( Model
-        ( DP.initTable 5 5 )
+        ( DP.initTable 5 (Just 5) )
         ( RF.init () )
         ( -2, -2 ) -- dp table is -1 indexed
     , Cmd.none)
@@ -48,7 +48,9 @@ init _ =
 -- UPDATE
 
 type Msg
-    = UpdateH String
+    = SwitchDPDim
+    | UpdateN String
+    | UpdateH String
     | UpdateW String
     | AddInitFormula
     | AddRecursionFormula
@@ -72,26 +74,48 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        UpdateH h_str ->
-            case String.toInt h_str of
-                Just h_ ->
+        SwitchDPDim ->
+            let
+                table =
+                    case model.table of
+                        DP.D1 tbl ->
+                            DP.initTable tbl.n (Just 5)
+                        DP.D2 tbl ->
+                            DP.initTable tbl.h Nothing
+            in
+            ( { model | table = table }, Cmd.none )
+
+        UpdateN n_str ->
+            case ( String.toInt n_str, model.table ) of
+                ( Just n_, DP.D1 tbl ) ->  
                     let
-                        h = Basics.max 1 h_
-                        table = DP.updateSize h ( model.table.w ) model.table
+                        n = Basics.max 1 n_
+                        table = DP.updateSize n Nothing model.table
                     in
                     ( { model | table = table }, Cmd.none )
-                Nothing ->
+                _ ->
+                    ( model, Cmd.none )
+
+        UpdateH h_str ->
+            case ( String.toInt h_str, model.table ) of
+                ( Just h_, DP.D2 tbl ) ->
+                    let
+                        h = Basics.max 1 h_
+                        table = DP.updateSize h ( Just tbl.w ) model.table
+                    in
+                    ( { model | table = table }, Cmd.none )
+                _ ->
                     ( model, Cmd.none )
 
         UpdateW w_str ->
-            case String.toInt w_str of
-                Just w_ ->
+            case ( String.toInt w_str, model.table ) of
+                ( Just w_, DP.D2 tbl ) ->
                     let
                         w = Basics.max 1 w_
-                        table = DP.updateSize ( model.table.h ) w model.table
+                        table = DP.updateSize tbl.h ( Just w ) model.table
                     in
                     ( { model | table = table }, Cmd.none )
-                Nothing ->
+                _ ->
                     ( model, Cmd.none )
 
         AddInitFormula ->
@@ -138,9 +162,14 @@ update msg model =
 
         ApplyRecursionFormulas ->
             let
-                tbl = DP.initTable model.table.h model.table.w
+                table =
+                    case model.table of
+                        DP.D1 tbl ->
+                            DP.initTable tbl.n Nothing
+                        DP.D2 tbl ->
+                            DP.initTable tbl.h (Just tbl.w)
             in
-            ( { model | table = DP.apply model.formulas tbl }, Cmd.none )
+            ( { model | table = DP.apply model.formulas table }, Cmd.none )
 
         OverDPCel row col ->
             ( { model | selectedCel = ( row, col )}, Cmd.none )
@@ -151,8 +180,16 @@ update msg model =
 -- VIEW
 
 showTable : DP.Table -> (Int, Int) -> Html Msg
-showTable tbl slct =
-    Array.toList tbl.t
+showTable table slct =
+    case table of
+        DP.D1 tbl ->
+            text "d1"
+        DP.D2 tbl ->
+            showTableD2 (tbl.h, tbl.w, tbl.t) slct
+
+showTableD2 : (Int, Int, Array (Array Int)) -> (Int, Int) -> Html Msg
+showTableD2 (h, w, tbl) slct =
+    Array.toList tbl
     |> List.indexedMap (\row ->
             Array.toList
             >> (List.indexedMap
@@ -184,7 +221,7 @@ showTable tbl slct =
             >> (tr [])
         )
     |> ((::)
-            ( ( List.range -1 (tbl.w-1)
+            ( ( List.range -1 (w-1)
                 |> (List.map
                         (\col ->
                             td
@@ -207,13 +244,22 @@ showFormula f updateMsg =
     case f of
         RF.Editting ef ->
             div []
-                [ text "dp["
-                , input [ onInput ( updateMsg 0 ) ] [ text ef.arg1 ]
-                , text "]["
-                , input [ onInput ( updateMsg 1 ) ] [ text ef.arg2 ]
-                , text "] = "
-                , input [ onInput ( updateMsg 2 ) ] [ text ef.body ]
-                ]
+                (
+                    [ text "dp["
+                    , input [ onInput ( updateMsg 0 ) ] [ text ef.arg1 ]
+                    , text "]["
+                    ]
+                    ++
+                    (
+                        ef.arg2
+                        |> Maybe.andThen (\a2 -> Just [input [ onInput ( updateMsg 1 ) ] [ text a2 ]])
+                        |> Maybe.withDefault []
+                    )
+                    ++
+                    [ text "] = "
+                    , input [ onInput ( updateMsg 2 ) ] [ text ef.body ]
+                    ]
+                )
         _ -> 
             div [] [ RF.stringOfFormula f |> text ]
 
@@ -284,30 +330,49 @@ showRecursionFormulas isInit fs =
 
 view : Model -> Html.Styled.Html Msg
 view model =
-    div
-        []
         [ h1 [] [text "DP visualizer"]
-        , div
-            []
-            [ text "H :"
-            , input
-                [ onInput UpdateH
-                , type_ "number"
-                , model.table.h |> String.fromInt |> value
+        , button
+            [ onClick SwitchDPDim ]
+            [ DP.dimOf model.table |> String.fromInt |> (\n -> n ++ "次元DP" ) |> text ]
+        ]
+        ++
+        ( case model.table of
+            DP.D1 tbl ->
+                [ div []
+                    [ text "N :"
+                    , input
+                        [ onInput UpdateN
+                        , type_ "number"
+                        , tbl.n |> String.fromInt |> value
+                        ]
+                        []
+                    ]
                 ]
-                []
-            ]
-        , div
-            []
-            [ text "W :"
-            , input
-                [ onInput UpdateW
-                , type_ "number"
-                , model.table.w |> String.fromInt |> value
+            DP.D2 tbl ->
+                [ div
+                    []
+                    [ text "H :"
+                    , input
+                        [ onInput UpdateH
+                        , type_ "number"
+                        , tbl.h |> String.fromInt |> value
+                        ]
+                        []
+                    ]
+                , div
+                    []
+                    [ text "W :"
+                    , input
+                        [ onInput UpdateW
+                        , type_ "number"
+                        , tbl.w |> String.fromInt |> value
+                        ]
+                        []
+                    ]
                 ]
-                []
-            ]
-        , showTable model.table model.selectedCel
+        )
+        ++
+        [ showTable model.table model.selectedCel
         , button
             [ onClick ApplyRecursionFormulas ]
             [ text "apply" ]
@@ -322,3 +387,4 @@ view model =
             [ text "add" ]
         , showRecursionFormulas False model.formulas.recursion
         ]
+        |> div []
