@@ -44,6 +44,12 @@ testParseForArrayFail dpDim fors =
         \_ -> Expect.err ( parseForArray dpDim fors )
 
 
+testParseEnvironmentValue : String -> Int -> String -> Maybe Value -> Test
+testParseEnvironmentValue str dim text expected =
+    test str <|
+        \_ -> Expect.equal expected ( parseEnvValue dim text )
+
+
 testDict : Dict Variable Value
 testDict =
     [ ( "a", Num 1 )
@@ -139,6 +145,15 @@ suite = describe "Test Expr"
             , describe "一つでも失敗すると失敗"
                 [ testParseForArrayFail 2 ( Array.fromList [("i+1", "0", "10"), ("w", "a", "b + 1")] )
                 ]
+            ]
+        , describe "定数のparse"
+            [ testParseEnvironmentValue "int 1" 0 "1" ( Num 1 |> Just )
+            , testParseEnvironmentValue "array1 [1]" 1 "1" ( Array.fromList [1] |> Arr1 |> Just )
+            , testParseEnvironmentValue "array1 [1,2,3,4]" 1 "1 2  3     4" ( Array.fromList [1,2,3,4] |> Arr1 |> Just )
+            , testParseEnvironmentValue "array2 [[1]]" 2 "1" ( Array.fromList [1] |> List.singleton |> Array.fromList |> Arr2 |> Just )
+            , testParseEnvironmentValue
+                "array2 [[1,2,3],[2,4,6]]" 2 "1 2 3\n2 4 6"
+                ([[1,2,3],[2,4,6]] |> List.map Array.fromList |> Array.fromList |> Arr2 |> Just )
             ]
         ]
     , describe "eval"

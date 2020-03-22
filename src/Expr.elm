@@ -1,7 +1,8 @@
 module Expr exposing (
             Variable, Value(..),
             Term(..), Op(..), UniOp(..), For,
-            parse, parseFor, parseForArray, isIncludingDP, eval, stringOf
+            parse, parseFor, parseForArray, parseEnvValue,
+            makeEnv, isIncludingDP, eval, stringOf
         )
 
 import Array exposing (Array)
@@ -137,6 +138,47 @@ parseForArray dpDim fors =
         )
         (Ok Array.empty)
         fors
+
+
+parseEnvValue : Int -> String -> Maybe Value
+parseEnvValue dim text =
+    let
+        toIntArray t =
+            String.split " " t
+            |> List.filter ((/=) "")
+            |> \s -> List.filterMap String.toInt s
+            |> \lst ->
+                if List.length lst == List.length s
+                then Array.fromList lst |> Just
+                else Nothing
+    in
+    case dim of
+        0 ->
+            String.toInt text |> Maybe.map Num
+        1 ->
+            toIntArray text |> Maybe.map Arr1
+        2 ->
+            String.split "\n" text
+            |> List.map toIntArray
+            |> \lst ->
+                if List.any ((==) Nothing) lst
+                then Nothing
+                else List.filterMap Basics.identity lst |> Array.fromList |> Arr2 |> Just
+        _ ->
+            Nothing
+
+
+makeEnv : Array (String, Int, String) -> Maybe (Dict Variable Value)
+makeEnv lst =
+    Array.toList lst
+    |> List.map (\(v, d, t) ->
+            parseEnvValue d t
+            |> Maybe.andThen (\x -> Just (v, x))
+        )
+    |> \dict ->
+        if List.any (((==) Nothing)) dict
+        then Nothing
+        else List.filterMap identity dict |> Dict.fromList |> Just
 
 
 getVariables : Term -> Set (Variable, Int)

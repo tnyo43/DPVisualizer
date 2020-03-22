@@ -44,7 +44,7 @@ editMultipleCelsD1 =
 testApplyRFD1 : String -> RecursionFormulas -> Table -> Test
 testApplyRFD1 str rf expected =
     test str <|
-        \_ -> Expect.equal expected ( apply rf (initTable_10 ()) )
+        \_ -> Expect.equal expected ( apply Dict.empty rf (initTable_10 ()) )
 
 
 -- TestD2
@@ -73,13 +73,13 @@ editMultipleCelsD2 =
 testApplyDPInitD2 : String -> Formula -> Table -> Test
 testApplyDPInitD2 str frm expected =
     test str <|
-        \_ -> Expect.equal expected ( applyFF frm (initTable_5_5 ()) )
+        \_ -> Expect.equal expected ( applyFF Dict.empty frm (initTable_5_5 ()) )
 
 
 testApplyRFD2 : String -> RecursionFormulas -> Table -> Test
 testApplyRFD2 str rf expected =
     test str <|
-        \_ -> Expect.equal expected ( apply rf (initTable_5_5 ()) )
+        \_ -> Expect.equal expected ( apply Dict.empty rf (initTable_5_5 ()) )
 
 
 suite : Test

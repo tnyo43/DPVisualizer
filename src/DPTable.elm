@@ -136,8 +136,8 @@ valueListOf table =
             [("H", Num tbl.h), ("W", Num tbl.w)]
         
 
-applyFF : Formula -> Table -> Table
-applyFF f tbl =
+applyFF : Dict Variable Value -> Formula -> Table -> Table
+applyFF env f tbl =
     case f of
         Fixed frm ->
             makeForCombinations ( valueListOf >> Dict.fromList <| tbl ) (Array.toList frm.for)
@@ -147,9 +147,8 @@ applyFF f tbl =
                         acc |> Maybe.andThen (\accTbl ->
                             let
                                 dict =
-                                    List.map (\(v, n) -> (v, Num n)) idx
-                                    |> (::) ("dp", valueOf accTbl)
-                                    |> Dict.fromList
+                                    Dict.insert "dp" (valueOf accTbl) env
+                                    |> \d -> List.foldl (\(v, n) accDict -> Dict.insert v (Num n) accDict) d idx
                             in
                             eval dict frm.arg1 |> Maybe.andThen (\arg1 ->
                             eval dict frm.body |> Maybe.andThen (\val ->
@@ -169,14 +168,14 @@ applyFF f tbl =
         _ -> tbl
 
 
-applyFormulas : Bool -> Array Formula -> Table -> Table
-applyFormulas isInit frms tbl =
+applyFormulas : Bool -> Dict Variable Value -> Array Formula -> Table -> Table
+applyFormulas isInit env frms tbl =
     ( if isInit then Array.foldr else Array.foldl )
-        applyFF tbl frms
+        (applyFF env) tbl frms
 
 
-apply : RecursionFormulas -> Table -> Table
-apply rf tbl =
+apply : Dict Variable Value -> RecursionFormulas -> Table -> Table
+apply env rf tbl =
     initSizeOf tbl
-    |> applyFormulas True rf.init
-    |> applyFormulas False rf.recursion
+    |> applyFormulas True env rf.init
+    |> applyFormulas False env rf.recursion

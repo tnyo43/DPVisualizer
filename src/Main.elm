@@ -2,7 +2,9 @@ port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Dict exposing (Dict)
 import DPTable as DP
+import Expr exposing (makeEnv)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
@@ -31,6 +33,7 @@ main =
 
 type alias Model =
     { table : DP.Table
+    , env : Array (String, Int, String)
     , formulas : RF.RecursionFormulas
     , selectedCel : ( Int, Int )
     }
@@ -40,9 +43,11 @@ init : () -> (Model, Cmd Msg)
 init _ =
     ( Model
         ( DP.initTable 5 (Just 5) )
+        Array.empty
         ( RF.init () )
         ( -2, -2 ) -- dp table is -1 indexed
     , Cmd.none)
+
 
 
 -- UPDATE
@@ -69,6 +74,10 @@ type Msg
     | ApplyRecursionFormulas
     | OverDPCel Int Int
     | OutDPCel
+    | AddEnv
+    | UpdateEnvVar Int String
+    | UpdateEnvValue Int String
+    | ChangeDimOfVar Int
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -163,19 +172,64 @@ update msg model =
         ApplyRecursionFormulas ->
             let
                 table =
-                    case model.table of
-                        DP.D1 tbl ->
-                            DP.initTable tbl.n Nothing
-                        DP.D2 tbl ->
-                            DP.initTable tbl.h (Just tbl.w)
+                    makeEnv model.env
+                    |> Maybe.andThen (\env ->
+                            ( case model.table of
+                                DP.D1 tbl ->
+                                    DP.initTable tbl.n Nothing
+                                DP.D2 tbl ->
+                                    DP.initTable tbl.h (Just tbl.w)
+                            )
+                            |> DP.apply env model.formulas
+                            |> Just
+                        )
+                    |> Maybe.withDefault model.table
             in
-            ( { model | table = DP.apply model.formulas table }, Cmd.none )
+            ( { model | table = table }, Cmd.none )
 
         OverDPCel row col ->
             ( { model | selectedCel = ( row, col )}, Cmd.none )
         
         OutDPCel ->
             ( { model | selectedCel = ( -2, -2 )}, Cmd.none )
+
+        AddEnv ->
+            ( { model | env = Array.push ("", 0, "") model.env }, Cmd.none )
+
+        UpdateEnvVar i text ->
+            let
+                env =
+                    Array.get i model.env
+                    |> Maybe.andThen (\(_, d, t) ->
+                            Array.set i (text, d, t) model.env |> Just
+                        )
+                    |> Maybe.withDefault model.env
+            in
+            ( { model | env = env }, Cmd.none )
+
+        UpdateEnvValue i text ->
+            let
+                env =
+                    Array.get i model.env
+                    |> Maybe.andThen (\(v, d, _) ->
+                            Array.set i (v, d, text) model.env |> Just
+                        )
+                    |> Maybe.withDefault model.env
+            in
+            ( { model | env = env }, Cmd.none )
+
+        ChangeDimOfVar i ->
+            let
+                env =
+                    Array.get i model.env
+                    |> Maybe.andThen (\(v, d, _) ->
+                            Array.set i (v, modBy 3 (d+1), "") model.env |> Just
+                        )
+                    |> Maybe.withDefault model.env
+            in
+            ( { model | env = env }, Cmd.none )
+
+
 
 -- VIEW
 
@@ -221,7 +275,6 @@ showTableD1 (n, tbl) slct =
         )
     )
     |> table ( onMouseLeave OutDPCel :: Styles.dpTable )
-
 
 
 showTableD2 : (Int, Int, Array (Array Int)) -> (Int, Int) -> Html Msg
@@ -378,6 +431,22 @@ view model =
         , button
             [ onClick SwitchDPDim ]
             [ DP.dimOf model.table |> String.fromInt |> (\n -> n ++ "次元DP" ) |> text ]
+        , button
+            [ onClick AddEnv ]
+            [ text "定数の追加" ]
+        , div []
+            (
+                model.env
+                |> Array.toList
+                |> List.indexedMap (\i (v, a, t) ->
+                        div []
+                            [ input [ onInput (UpdateEnvVar i) ] [ text v ]
+                            , button [ onClick (ChangeDimOfVar i) ] [ "arity : " ++ (String.fromInt a) |> text  ]
+                            , if a == 2 then textarea [ onInput (UpdateEnvValue i) ] [ text t ] else input [ onInput (UpdateEnvValue i) ] [ text t ]
+                            ]
+                    
+                    )
+            )
         ]
         ++
         ( case model.table of
